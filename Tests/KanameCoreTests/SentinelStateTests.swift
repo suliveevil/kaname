@@ -5,7 +5,7 @@ import XCTest
 // 只有它残留，才说明上一个进程没来得及告别。
 // 但「残留」还要问一句它属于谁——第二个实例启动时会看到**仍在运行**那个进程的哨兵。
 
-final class SentinelStateTests: XCTestCase {
+nonisolated final class SentinelStateTests: XCTestCase {
     private let me: Int32 = 4242
 
     private func launch(

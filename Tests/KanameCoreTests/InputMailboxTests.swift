@@ -6,7 +6,7 @@ import XCTest
 /// Every case here is about a keyboard that has stopped answering: the property worth
 /// protecting is that a wedged main thread cannot turn into a replay, and that a drop leaves
 /// the panel reset rather than believing a stale modifier is still held.
-final class InputMailboxTests: XCTestCase {
+nonisolated final class InputMailboxTests: XCTestCase {
     private func event(_ key: KeyToken? = KeyToken("a"), repeat isRepeat: Bool = false) -> KeyEvent {
         KeyEvent(
             kind: .keyDown,

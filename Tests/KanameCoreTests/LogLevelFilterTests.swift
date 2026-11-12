@@ -4,7 +4,7 @@ import XCTest
 // 级别门槛只有一道判断，但它决定了「出问题时日志会不会恰好静默」：
 // 失败永远是 I/W/E，任何开关都不影响；verbose/debug 才是可关的。
 
-final class LogLevelFilterTests: XCTestCase {
+nonisolated final class LogLevelFilterTests: XCTestCase {
     func testErrorsAlwaysPass() {
         XCTAssertTrue(LogLevelFilter.shouldLog(level: .error, verboseEnabled: false))
         XCTAssertTrue(LogLevelFilter.shouldLog(level: .warning, verboseEnabled: false))

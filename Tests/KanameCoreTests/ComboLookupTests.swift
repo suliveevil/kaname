@@ -6,7 +6,7 @@ import XCTest
 /// Both answer the same question — who gets this combo? — one from what the scan read and
 /// one from a real keypress. Their tests live together because the second exists to cover
 /// the cases where the first can only guess.
-final class ComboLookupTests: XCTestCase {
+nonisolated final class ComboLookupTests: XCTestCase {
 
     private var cmdShift4: KeyChord { .combo([.command, .shift], KeyToken("4")) }
 

@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class UsageSortingTests: XCTestCase {
+nonisolated final class UsageSortingTests: XCTestCase {
     private let copy = KeyChord.combo([.command], KeyToken("c"))
     private let paste = KeyChord.combo([.command], KeyToken("v"))
     private let selectAll = KeyChord.combo([.command], KeyToken("a"))

@@ -46,19 +46,19 @@ Accessibility must be granted again. The previous identity is left untouched as 
 
 | Item | Path |
 | --- | --- |
-| Old keychain | `~/Library/Keychains/kaname-signing.keychain-db` |
-| Old passphrase | `~/Library/Application Support/Kaname/signing/keychain-pass` |
+| Old keychain | `~/Library/Keychains/kagipeek-signing.keychain-db` |
+| Old passphrase | `~/Library/Application Support/KagiPeek/signing/keychain-pass` |
 
 `scripts/setup_signing.sh` appends the new keychain to the user search list instead of replacing
 it, so the old keychain stays usable. To sign with it temporarily:
 
 ```sh
-codesign --force --sign "Kaname Local" \
-  --keychain "$HOME/Library/Keychains/kaname-signing.keychain-db" /tmp/some-binary-copy
+codesign --force --sign "KagiPeek Local" \
+  --keychain "$HOME/Library/Keychains/kagipeek-signing.keychain-db" /tmp/some-binary-copy
 ```
 
 Delete the old keychain and certificate only after the Kaname install has run normally for a
-while. Removing it while old backups (signed `Kaname Local`) are still kept would make those
+while. Removing it while old backups (signed `KagiPeek Local`) are still kept would make those
 backups unverifiable; keep both until the old backups have aged out.
 
 ### New machine / restore
@@ -72,14 +72,14 @@ trusted (`security add-trusted-cert -r trustRoot -k "$KC" cert.pem`, or Keychain
 
 ## Steps
 
-1. **Decide the version.** `MARKETING_VERSION` in `Kaname.xcodeproj/project.pbxproj` (both
-   the Debug and Release configurations) and make sure `CHANGELOG.md` has the entries under
-   `[Unreleased]`. That file is the single source for both build paths: the Xcode build reads
-   it directly, and the fallback build (`scripts/build_swiftc.sh`) overwrites
-   `CFBundleShortVersionString` / `CFBundleVersion` in the plist it was handed with
-   `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION`, printing the template's value when the two
-   disagreed. A bump that only touched the plist used to produce a fallback build that named
-   itself the previous release.
+1. **Decide the version.** Set `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in
+   `Kaname.xcodeproj/project.pbxproj` (both the Debug and Release configurations), and make sure
+   `CHANGELOG.md` has the entries under `[Unreleased]`. The project file is the version source for
+   both build paths: the Xcode build reads it directly, and the fallback build
+   (`scripts/build_swiftc.sh`) overwrites `CFBundleShortVersionString` / `CFBundleVersion` in the
+   plist it was handed with `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION`, printing the
+   template's value when the two disagreed. A bump that only touched the plist used to produce a
+   fallback build that named itself the previous release.
 2. **Test.**
 
    ```sh
@@ -161,11 +161,11 @@ open /Applications/Kaname.app
 /usr/libexec/PlistBuddy -c "Print :KanameCommit" /Applications/Kaname.app/Contents/Info.plist
 ```
 
-A rollback to the pre-rename app is a separate move: quit `com.suliveevil.kaname`, copy the
-`Kaname-*.app` backup from `~/Library/Application Support/Kaname/backups/` (or the old
-`~/Library/Application Support/Kaname/backups/`) to `/Applications/Kaname.app`, then launch
-by `com.suliveevil.kaname`. Remove `/Applications/Kaname.app` first so two event taps cannot run
-at once.
+A rollback to the pre-rename app is a separate move: quit `com.suliveevil.kaname` and remove
+`/Applications/Kaname.app` first so two event taps cannot run at once. Copy the `KagiPeek-*.app`
+backup from `~/Library/Application Support/Kaname/backups/` (or the old
+`~/Library/Application Support/KagiPeek/backups/`) to `/Applications/KagiPeek.app`, then launch
+by `com.voltline.kagipeek`.
 
 The last command must print the commit embedded in the backup's name; compare the two before
 declaring the rollback good. A backup carries the signature it was installed with, so a

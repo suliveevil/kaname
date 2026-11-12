@@ -6,7 +6,7 @@ import XCTest
 /// must arrive through — still answering at all. Measured 2026-11-02: three disables
 /// logged, then silence, then a power-button reset; the counter had no way to know the
 /// callback had stopped running.
-final class InputWatchdogTests: XCTestCase {
+nonisolated final class InputWatchdogTests: XCTestCase {
 
     func testHealthyPingsDoNothing() {
         var watchdog = InputWatchdog()

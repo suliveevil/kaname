@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class OverlayMetricsContractTests: XCTestCase {
+nonisolated final class OverlayMetricsContractTests: XCTestCase {
     func testNaturalWidthFitsTheRequestedColumnCount() {
         var settings = AppSettingsSnapshot()
         for columns in 1...4 {

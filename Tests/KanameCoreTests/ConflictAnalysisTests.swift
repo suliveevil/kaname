@@ -3,7 +3,7 @@ import XCTest
 
 /// The part of conflict detection that says something the old flat list could not: how much
 /// a clash bites, and who the keyboard stack says wins.
-final class ConflictAnalysisTests: XCTestCase {
+nonisolated final class ConflictAnalysisTests: XCTestCase {
 
     // MARK: - Helpers
 

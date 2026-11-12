@@ -18,6 +18,8 @@ final class SearchSession {
     private let isPreviewing: () -> Bool
     private let dismissPanel: () -> Void
     private let activatePanel: () -> Void
+    private let adoptCursorReturn: () -> Void
+    private let scheduleCursorReturn: () -> Void
     private let externalBindings: () -> [BindingItem]
 
     init(
@@ -31,6 +33,8 @@ final class SearchSession {
         isPreviewing: @escaping () -> Bool,
         dismissPanel: @escaping () -> Void,
         activatePanel: @escaping () -> Void,
+        adoptCursorReturn: @escaping () -> Void,
+        scheduleCursorReturn: @escaping () -> Void,
         externalBindings: @escaping () -> [BindingItem]
     ) {
         self.state = state
@@ -43,6 +47,8 @@ final class SearchSession {
         self.isPreviewing = isPreviewing
         self.dismissPanel = dismissPanel
         self.activatePanel = activatePanel
+        self.adoptCursorReturn = adoptCursorReturn
+        self.scheduleCursorReturn = scheduleCursorReturn
         self.externalBindings = externalBindings
     }
 
@@ -79,6 +85,10 @@ final class SearchSession {
         // Reset the scope while the engine still knows which one it was: the snapshot waits
         // for the engine to clear its cached catalog, icon and process first.
         selectSearchScope(nil)
+        state.beginSurfaceSession()
+        // Keep the pointer origin captured by the panel (or capture it for a palette opened
+        // directly). The deferred panel dismissal must not consume it now that search owns it.
+        adoptCursorReturn()
         state.search.beginNewSession()
         state.searchFocusToken += 1
         refreshSearch()
@@ -91,6 +101,7 @@ final class SearchSession {
         state.searchRunTask = nil
         state.search.isVisible = false
         presenters.panel.closeSearch()
+        scheduleCursorReturn()
     }
 
     func toggleSearch() {
@@ -125,9 +136,14 @@ final class SearchSession {
         guard RowEligibility.canActivate(isEnabled: item.isEnabled) else { return }
         guard canRunFromSearch(item) else { return }
         // With a scope, the app to run in is the one being searched — it is usually *not* in
-        // front, because the palette took the keyboard from whatever was.
+        // front, because the palette took the keyboard from whatever was. Capture both forms
+        // of that identity before hiding search or starting any delayed activation.
+        let session = state.surfaceSessionToken
         let scoped = state.searchScopeProcessID.flatMap { NSRunningApplication(processIdentifier: $0) }
-        let target = scoped ?? presenters.panel.searchTargetApplication ?? NSWorkspace.shared.frontmostApplication
+        let targetApp = scoped ?? presenters.panel.searchTargetApplication ?? NSWorkspace.shared.frontmostApplication
+        let injectionTarget = targetApp.map {
+            InjectionTarget(processID: $0.processIdentifier, bundleID: $0.bundleIdentifier)
+        }
         hideSearch()
         if let scoped, !scoped.isActive {
             // Bring it forward first, then trigger: a menu press into a background app and a
@@ -136,18 +152,33 @@ final class SearchSession {
             state.searchRunTask = Task { @MainActor [weak self] in
                 try? await Task.sleep(nanoseconds: 200_000_000)
                 guard !Task.isCancelled else { return }
-                await self?.triggerSearchItem(item, target: scoped)
+                await self?.triggerSearchItem(
+                    item,
+                    targetApp: scoped,
+                    injectionTarget: injectionTarget,
+                    session: session
+                )
             }
             return
         }
         state.searchRunTask = Task { @MainActor [weak self] in
-            await self?.triggerSearchItem(item, target: target)
+            await self?.triggerSearchItem(
+                item,
+                targetApp: targetApp,
+                injectionTarget: injectionTarget,
+                session: session
+            )
         }
     }
 
     /// The trigger itself, split out so the scoped path can activate first and still share it.
-    private func triggerSearchItem(_ item: BindingItem, target: NSRunningApplication?) async {
-        guard !Task.isCancelled else { return }
+    private func triggerSearchItem(
+        _ item: BindingItem,
+        targetApp: NSRunningApplication?,
+        injectionTarget: InjectionTarget?,
+        session: SessionToken
+    ) async {
+        guard !Task.isCancelled, state.surfaceSessionToken == session else { return }
         guard RowEligibility.canActivate(isEnabled: item.isEnabled) else { return }
         guard canRunFromSearch(item) else { return }
         // Pressing the menu item is the primary trigger; `RowRunner` keeps the search path's
@@ -155,13 +186,14 @@ final class SearchSession {
         let element = await rowRunner.resolveElement(forRowID: item.id)
         // The element walk can outlive the session: a cancelled hand-off must not press
         // the row it was looking up when the palette closed mid-walk.
-        guard !Task.isCancelled else { return }
+        guard !Task.isCancelled, state.surfaceSessionToken == session else { return }
         await rowRunner.run(
             item,
             rowID: item.id,
             element: element,
             origin: .search,
-            searchTarget: target
+            target: injectionTarget,
+            searchTarget: targetApp
         )
     }
 

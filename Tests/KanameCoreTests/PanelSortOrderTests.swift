@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class PanelSortOrderTests: XCTestCase {
+nonisolated final class PanelSortOrderTests: XCTestCase {
     // MARK: - Ordering
 
     func testByModifierIsTheExistingOrderUnchanged() {

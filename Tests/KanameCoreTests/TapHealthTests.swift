@@ -6,7 +6,7 @@ import XCTest
 /// that cannot run. So the tests are about two things: the first disable is always forgiven,
 /// a tap that keeps failing is eventually left off, and — the bug measured in the field on
 /// 2026-11-02 — events trickling through a stalling tap must not restart the episode.
-final class TapHealthTests: XCTestCase {
+nonisolated final class TapHealthTests: XCTestCase {
 
     func testTheFirstDisableIsReEnabledAtOnce() {
         var health = TapHealth()

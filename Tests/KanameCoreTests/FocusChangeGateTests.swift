@@ -3,7 +3,7 @@ import XCTest
 
 /// The panel belongs to the app it was opened over. Losing that app closes it; a focus
 /// hand-off that Kaname itself performs must not.
-final class FocusDismissPolicyTests: XCTestCase {
+nonisolated final class FocusDismissPolicyTests: XCTestCase {
     private func context(
         panelVisible: Bool = true,
         ownerPID: pid_t? = 100,
@@ -63,7 +63,7 @@ final class FocusDismissPolicyTests: XCTestCase {
 }
 
 /// One switch can deliver three notifications. They must converge on one scan.
-final class FocusRescanGateTests: XCTestCase {
+nonisolated final class FocusRescanGateTests: XCTestCase {
     private let start = Date(timeIntervalSince1970: 1_700_000_000)
     private func plain() -> FocusRescanGate.Request {
         FocusRescanGate.Request(force: false, preserveOnEmpty: false)

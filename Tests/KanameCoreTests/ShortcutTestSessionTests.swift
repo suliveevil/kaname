@@ -5,7 +5,7 @@ import XCTest
 /// `ShortcutTester` (AppKit): when a press counts, how the head/tail pair is matched, which
 /// activation belongs to the press, and how the window closes. The state machine is pure, so
 /// every branch is pinned without a keyboard.
-final class ShortcutTestSessionTests: XCTestCase {
+nonisolated final class ShortcutTestSessionTests: XCTestCase {
 
     // MARK: - Helpers
 

@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class RowKeySpecTests: XCTestCase {
+nonisolated final class RowKeySpecTests: XCTestCase {
     func testSpaceRunsTheRow() {
         let spec = HotkeySpec.runRowDefault // Space, no modifiers
         XCTAssertTrue(spec.matches(keyCode: KeyCode.space, modifiers: []))

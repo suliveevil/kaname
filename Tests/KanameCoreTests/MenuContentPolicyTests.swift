@@ -3,7 +3,7 @@ import XCTest
 
 /// 菜单栏里命令和数据混在一起，而且数据是**嵌套**的：Safari 的历史记录藏在「某一天」子菜单里，
 /// 书签藏在文件夹子菜单里。判定规则钉在这里。
-final class MenuContentPolicyTests: XCTestCase {
+nonisolated final class MenuContentPolicyTests: XCTestCase {
     /// 普通命令菜单：全读，没快捷键的命令（如 "Zoom"）也保留。
     func testCommandMenuKeepsEverything() {
         let decision = MenuContentPolicy.decideOpenMenu(childCount: 34)
@@ -57,7 +57,7 @@ final class MenuContentPolicyTests: XCTestCase {
 
 /// 浏览器把书签和历史记录放在顶层菜单里，且**开头就是真命令**（⌘D 添加书签、⌘Y 显示历史），
 /// 所以"采样看有没有快捷键"抓不到后面那几十条链接。这类菜单按名字认。
-final class DataMenuTitleTests: XCTestCase {
+nonisolated final class DataMenuTitleTests: XCTestCase {
     func testRecognisesTheBookmarkAndHistoryMenusInBothLanguages() {
         for title in ["Bookmarks", "bookmarks", "History", "书签", "历史记录", "阅读列表", "Reading List"] {
             XCTAssertTrue(MenuContentPolicy.isDataMenu(title: title), title)
@@ -93,7 +93,7 @@ final class DataMenuTitleTests: XCTestCase {
 
 /// 顶层菜单只用「名字」和「体量」判定，**不采样**：`开发`（27 项）前几项没有快捷键，
 /// 采样会把它误判成数据，连带丢掉 18 条没有快捷键的真命令。
-final class TopLevelMenuTests: XCTestCase {
+nonisolated final class TopLevelMenuTests: XCTestCase {
     func testTopLevelCommandMenuIsNeverJudgedBySample() {
         let develop = MenuContentPolicy.decideOpenMenu(childCount: 27)
         XCTAssertFalse(develop.looksLikeContent)

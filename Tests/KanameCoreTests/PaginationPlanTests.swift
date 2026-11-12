@@ -2,7 +2,7 @@ import XCTest
 @testable import KanameCore
 
 /// Pins the loop rules: the ends of the list connect, and a one-page list does not move.
-final class PaginationPlanTests: XCTestCase {
+nonisolated final class PaginationPlanTests: XCTestCase {
     func testNextPageWrapsFromLastToFirst() {
         XCTAssertEqual(PaginationPlan.nextPage(from: 2, pageCount: 3), 0)
         XCTAssertEqual(PaginationPlan.nextPage(from: 0, pageCount: 3), 1)

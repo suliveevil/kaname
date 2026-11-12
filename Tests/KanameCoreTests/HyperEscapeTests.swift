@@ -3,7 +3,7 @@ import XCTest
 
 /// Characterizes the Karabiner-style "hyper tap → Escape" gesture that used to live inline
 /// in `ShortcutEngine.handleModifiers` as `hyperArmedAt` / `hyperUsedKey` bookkeeping.
-final class HyperEscapeTests: XCTestCase {
+nonisolated final class HyperEscapeTests: XCTestCase {
     private let t0 = Date(timeIntervalSinceReferenceDate: 1_000_000)
     private let hyper: ModifierSet = [.control, .option, .shift, .command]
 

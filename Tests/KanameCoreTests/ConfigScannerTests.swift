@@ -6,7 +6,7 @@ import XCTest
 /// Each parser is split from its file access for exactly this reason: a user's `~/.config`
 /// is not a test fixture, and a scanner that could only be exercised against a real Karabiner
 /// install would only ever be tested on the machines that happen to have one.
-final class ConfigScannerTests: XCTestCase {
+nonisolated final class ConfigScannerTests: XCTestCase {
 
     // MARK: - Karabiner
 

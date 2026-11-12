@@ -5,16 +5,16 @@ import XCTest
 /// app. Finder writes the file URL **and** the legacy `NSFilenamesPboardType` path array; an
 /// `NSItemProvider` cannot write the latter, which is why the guide starts a real dragging
 /// session with the URL as its pasteboard writer.
-final class AppDragPasteboardContractTests: XCTestCase {
+nonisolated final class AppDragPasteboardContractTests: XCTestCase {
     private var bundleURL: URL!
 
-    override func setUpWithError() throws {
+    nonisolated override func setUpWithError() throws {
         bundleURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("DragContract-\(UUID().uuidString).app", isDirectory: true)
         try FileManager.default.createDirectory(at: bundleURL, withIntermediateDirectories: true)
     }
 
-    override func tearDownWithError() throws {
+    nonisolated override func tearDownWithError() throws {
         try? FileManager.default.removeItem(at: bundleURL)
     }
 

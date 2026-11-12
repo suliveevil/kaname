@@ -8,7 +8,7 @@ import XCTest
 /// 明明能显示约 27 行。
 ///
 /// 面板的方向键走的就是这一页的行顺序，所以列内顺序必须与键盘顺序一致。
-final class PanelColumnFillTests: XCTestCase {
+nonisolated final class PanelColumnFillTests: XCTestCase {
     /// 容量够时只填前面几列，最后一列可以空着 —— 这就是「先填满前两列」。
     func testFillsColumnsToCapacityBeforeMovingRight() {
         let rows = Array(0..<50)

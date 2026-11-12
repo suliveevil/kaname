@@ -3,7 +3,7 @@ import XCTest
 
 /// The favorites rules that used to be two booleans passed into every rebuild and repeated
 /// in two cache keys — now one value with named semantics.
-final class FavoritesPolicyTests: XCTestCase {
+nonisolated final class FavoritesPolicyTests: XCTestCase {
     private struct Row: Equatable {
         let item: String
         let favorite: Bool

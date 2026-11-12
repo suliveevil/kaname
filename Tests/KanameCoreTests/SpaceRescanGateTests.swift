@@ -5,7 +5,7 @@ import XCTest
 ///
 /// 一次切换可能连着来几条通知，同一个 App 在窗口内的请求被合并；而重扫撞上菜单栏
 /// 还没挂回来的那一刻，空列表不能把用户眼前的目录清掉。
-final class SpaceRescanGateTests: XCTestCase {
+nonisolated final class SpaceRescanGateTests: XCTestCase {
     private let start = Date(timeIntervalSince1970: 1_000)
 
     func testRepeatedRequestForTheSameAppInsideTheWindowIsMerged() {

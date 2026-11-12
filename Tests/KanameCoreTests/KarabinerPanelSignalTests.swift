@@ -6,7 +6,7 @@ import XCTest
 /// The transport (`KarabinerBridge`) spawns a process and is not worth unit-testing; the two
 /// things that can be wrong and would be invisible at runtime are the payload a rule has to
 /// match and the decision about when the variable must be 0.
-final class KarabinerPanelSignalTests: XCTestCase {
+nonisolated final class KarabinerPanelSignalTests: XCTestCase {
     func testPayloadCarriesTheVariableAndOneOrZero() throws {
         let visible = KarabinerPanelSignal.payload(panelIsVisible: true)
         let hidden = KarabinerPanelSignal.payload(panelIsVisible: false)

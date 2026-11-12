@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class RestrictedActionPolicyTests: XCTestCase {
+nonisolated final class RestrictedActionPolicyTests: XCTestCase {
     private let power = KeyToken("power")
 
     private func chord(

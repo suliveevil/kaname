@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class NumericSettingInputTests: XCTestCase {
+nonisolated final class NumericSettingInputTests: XCTestCase {
     private let range = 6...60
 
     func testAcceptsAWholeNumberInsideTheRange() {

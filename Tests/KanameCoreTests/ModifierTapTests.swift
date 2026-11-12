@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class ModifierTapTests: XCTestCase {
+nonisolated final class ModifierTapTests: XCTestCase {
     private let start = Date(timeIntervalSince1970: 1_000)
     private let window: TimeInterval = 0.35
 

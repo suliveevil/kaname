@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class LocalizationTests: XCTestCase {
+nonisolated final class LocalizationTests: XCTestCase {
     func testEveryKeyHasBothLanguages() {
         for key in L10nKey.allCases {
             let en = L10n.string(key, language: .english)

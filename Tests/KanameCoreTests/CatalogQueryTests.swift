@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class CatalogQueryTests: XCTestCase {
+nonisolated final class CatalogQueryTests: XCTestCase {
     /// A fresh settings snapshot becomes the default query: no forced scan, and the two
     /// catalog flags carried over verbatim.
     func testDefaultsFromSettings() {

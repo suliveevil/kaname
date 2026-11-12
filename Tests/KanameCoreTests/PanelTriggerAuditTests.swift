@@ -6,7 +6,7 @@ import XCTest
 /// of the ⌥⌘M / ⌥⌘F bug (the filter claiming the last key, the router's narrower catalog),
 /// and the false positive that started this change: a command with no shortcut is still a
 /// command the user can click.
-final class PanelTriggerAuditTests: XCTestCase {
+nonisolated final class PanelTriggerAuditTests: XCTestCase {
     private static let inert = HotkeySpec(keyCode: 999, modifiers: [])
 
     private static let neutralSettings: AppSettingsSnapshot = {

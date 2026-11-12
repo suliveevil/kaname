@@ -6,7 +6,7 @@ import XCTest
 /// The pair matters because the distinction is what answers "does this key have to be
 /// swallowed?" — and answering that wrong runs a shortcut twice. So the two are never merged
 /// into one set here, and `effective` is the only place the lone-⇧ rule applies.
-final class PendingModifiersTests: XCTestCase {
+nonisolated final class PendingModifiersTests: XCTestCase {
     private func mods(_ members: ModifierSet...) -> ModifierSet {
         members.reduce(ModifierSet(rawValue: 0)) { $0.union($1) }
     }
@@ -98,7 +98,7 @@ final class PendingModifiersTests: XCTestCase {
 /// `composed == false`, because that is what keeps the event passing through to the front app
 /// exactly as it always has. Getting it wrong swallows keys the user never asked the panel to
 /// touch.
-final class ChordCompositionTests: XCTestCase {
+nonisolated final class ChordCompositionTests: XCTestCase {
     private let c = KeyToken("c")
     private let k = KeyToken("k")
 
@@ -218,7 +218,7 @@ final class ChordCompositionTests: XCTestCase {
 }
 
 /// Narrowing must keep working exactly as it did, with or without a tick.
-final class NarrowingStillWorksTests: XCTestCase {
+nonisolated final class NarrowingStillWorksTests: XCTestCase {
     private func item(_ chord: KeyChord) -> BindingItem {
         BindingItem(chord: chord, title: "T", group: ["Edit"], source: .menu)
     }
@@ -254,7 +254,7 @@ final class NarrowingStillWorksTests: XCTestCase {
 /// event, so `;` arrives carrying nothing and `⌥;` is a real binding — the composition would
 /// swallow it as the first stroke of `⌥;` while the engine pages the list. Both sides read
 /// this one list, so these cases pin it.
-final class PanelKeyIntakeTests: XCTestCase {
+nonisolated final class PanelKeyIntakeTests: XCTestCase {
     private let run = HotkeySpec(keyCode: KeyCode.returnKey, modifiers: [])
     private let copy = HotkeySpec(keyCode: KeyCode.returnKey, modifiers: [.command])
 

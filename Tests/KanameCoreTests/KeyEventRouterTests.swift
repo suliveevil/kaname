@@ -5,7 +5,7 @@ import XCTest
 /// inline: hotkeys first, then the phase switch, then the panel's own keys, then chord
 /// composition. Every case below pins an existing branch so a later refactor of the engine
 /// cannot change what a key means without a test noticing.
-final class KeyEventRouterTests: XCTestCase {
+nonisolated final class KeyEventRouterTests: XCTestCase {
     /// A spec that can never match a real key press.
     private static let inert = HotkeySpec(keyCode: 999, modifiers: [])
 

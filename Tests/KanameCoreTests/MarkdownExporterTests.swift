@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class MarkdownExporterTests: XCTestCase {
+nonisolated final class MarkdownExporterTests: XCTestCase {
     func testRendersGroupedTable() {
         let items = [
             BindingItem(chord: .combo([.command], KeyToken("c")), title: "Copy | Paste", group: ["Edit"], source: .menu),

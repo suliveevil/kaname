@@ -6,7 +6,7 @@ import XCTest
 /// 缓存回退的行要在后台重新走一遍菜单路径才能按下去，走路径期间用户可能再点一次；
 /// 闸门把第二次点击挡掉，`endRunning` 的 rowID 匹配则让面板已经换了一屏之后的迟到
 /// 完成不误清新的状态。
-final class PanelRunGateTests: XCTestCase {
+nonisolated final class PanelRunGateTests: XCTestCase {
     func testFirstActivationClaimsTheSlot() {
         var panel = PanelState()
         XCTAssertNil(panel.runningRowID)

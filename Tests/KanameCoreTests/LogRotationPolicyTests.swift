@@ -4,7 +4,7 @@ import XCTest
 // 日志文件的「按日滚动 / 保留天数 / 总大小上限」全是纯决策，时区在这里注入，
 // 免得测试结果取决于跑测试的机器在哪个时区。
 
-final class LogRotationPolicyTests: XCTestCase {
+nonisolated final class LogRotationPolicyTests: XCTestCase {
     private let utc = TimeZone(identifier: "UTC")!
     private var calendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)

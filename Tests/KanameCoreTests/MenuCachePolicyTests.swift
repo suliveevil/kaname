@@ -2,7 +2,7 @@ import XCTest
 @testable import KanameCore
 
 /// 菜单扫描磁盘缓存的纯规则：什么算"仍然可信"（Menu-Bar-Search 的控制文件 + 我们的年龄上限）。
-final class MenuCachePolicyTests: XCTestCase {
+nonisolated final class MenuCachePolicyTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_000_000)
     private let fingerprint = MenuCachePolicy.fingerprint(showAppleMenu: false)
 

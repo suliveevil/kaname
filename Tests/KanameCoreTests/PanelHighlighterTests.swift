@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class PanelHighlighterTests: XCTestCase {
+nonisolated final class PanelHighlighterTests: XCTestCase {
     private let items = [
         BindingItem(chord: .combo([.command], KeyToken("c")), title: "Copy", group: ["Edit"], source: .menu),
         BindingItem(chord: .combo([.command, .shift], KeyToken("s")), title: "Save As", group: ["File"], source: .menu),

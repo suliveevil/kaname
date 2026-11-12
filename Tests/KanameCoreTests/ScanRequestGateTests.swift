@@ -5,7 +5,7 @@ import XCTest
 ///
 /// 扫描比它服务的那次点击活得久——用户切了 App、又开了一次面板——旧扫描跑完时不能把
 /// 过期的目录盖到当前界面上。发号是原子的，所以两个请求不可能都认为自己是「最新」。
-final class ScanRequestGateTests: XCTestCase {
+nonisolated final class ScanRequestGateTests: XCTestCase {
     func testEachRequestGetsANewerToken() {
         let gate = ScanRequestGate()
         let first = gate.begin()
@@ -70,17 +70,33 @@ final class ScanRequestGateTests: XCTestCase {
         XCTAssertGreaterThan(ScanAdmission.slotWaitTimeout, 0)
     }
 
+    /// Locked reference storage keeps the concurrent closure from capturing and mutating a
+    /// local array, which Swift 6 correctly diagnoses even when every append holds a lock.
+    private final class TokenCollector: @unchecked Sendable {
+        private let lock = NSLock()
+        private var values: [UInt64] = []
+
+        func append(_ token: UInt64) {
+            lock.lock()
+            values.append(token)
+            lock.unlock()
+        }
+
+        var snapshot: [UInt64] {
+            lock.lock()
+            defer { lock.unlock() }
+            return values
+        }
+    }
+
     /// 并发发号不能发出重复的 token，否则两次扫描会同时认为自己可以发布。
     func testConcurrentRequestsGetDistinctTokens() {
         let gate = ScanRequestGate()
-        var tokens: [UInt64] = []
-        let lock = NSLock()
+        let collector = TokenCollector()
         DispatchQueue.concurrentPerform(iterations: 64) { _ in
-            let token = gate.begin()
-            lock.lock()
-            tokens.append(token)
-            lock.unlock()
+            collector.append(gate.begin())
         }
+        let tokens = collector.snapshot
         XCTAssertEqual(Set(tokens).count, tokens.count)
         XCTAssertEqual(gate.begin(), (tokens.max() ?? 0) + 1)
     }

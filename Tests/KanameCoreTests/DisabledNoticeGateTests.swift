@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class DisabledNoticeGateTests: XCTestCase {
+nonisolated final class DisabledNoticeGateTests: XCTestCase {
     private let start = Date(timeIntervalSince1970: 1_000)
 
     /// The first click explains itself.

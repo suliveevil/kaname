@@ -4,7 +4,7 @@ import XCTest
 /// The row contract, the list selection and the header layout used to live inside AppKit
 /// code, where nothing could assert them. These tests pin the rules that the panel, the
 /// inline filter now share.
-final class RowKeyRouterTests: XCTestCase {
+nonisolated final class RowKeyRouterTests: XCTestCase {
     func testRunWinsWhenBothKeysShareAChord() {
         let shared = HotkeySpec(keyCode: KeyCode.returnKey, modifiers: [])
         XCTAssertEqual(

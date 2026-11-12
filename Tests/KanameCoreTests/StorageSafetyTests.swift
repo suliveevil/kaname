@@ -3,7 +3,7 @@ import XCTest
 
 /// Persistence policy that can be decided without touching the real Application Support
 /// store: a newer build's file must never be rewritten by an older build.
-final class StorageSafetyTests: XCTestCase {
+nonisolated final class StorageSafetyTests: XCTestCase {
     func testCurrentSchemaCanBeAutomaticallyRewritten() {
         XCTAssertTrue(
             SettingsMigrator.canAutomaticallyRewrite(

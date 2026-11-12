@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class PrefixResolverTests: XCTestCase {
+nonisolated final class PrefixResolverTests: XCTestCase {
     func makeCatalog() -> [BindingItem] {
         [
             BindingItem(chord: .combo([.command], KeyToken("c")), title: "Copy", group: ["Edit"], source: .menu),

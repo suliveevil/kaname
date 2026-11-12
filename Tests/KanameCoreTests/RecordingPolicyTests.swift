@@ -4,7 +4,7 @@ import XCTest
 /// Pins the recording table that used to be a double switch inside the engine. Every case
 /// below is one branch of `ShortcutEngine.handleRecording`, so moving the rules into
 /// `RecordingPolicy` cannot change what a key does while a binding is being recorded.
-final class RecordingPolicyTests: XCTestCase {
+nonisolated final class RecordingPolicyTests: XCTestCase {
     private func event(
         _ kind: KeyEventKind,
         keyCode: UInt16,

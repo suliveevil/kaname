@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class KeyFormatterTests: XCTestCase {
+nonisolated final class KeyFormatterTests: XCTestCase {
     func testCanonicalModifierOrder() {
         let chord = KeyChord.combo([.command, .shift, .option, .control], KeyToken("k"))
         XCTAssertEqual(KeyFormatter.render(chord, style: .symbols), "⌃⌥⇧⌘K")

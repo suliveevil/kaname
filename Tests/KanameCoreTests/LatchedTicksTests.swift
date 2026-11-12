@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class LatchedTicksTests: XCTestCase {
+nonisolated final class LatchedTicksTests: XCTestCase {
     /// 撤销的是最后点的那个，不是 ⌃⌥⇧⌘ 顺序里的最后一个。
     func testPopRemovesTheMostRecentTick() {
         var state = (latched: ModifierSet(), order: [ModifierSet]())

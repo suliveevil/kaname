@@ -3,7 +3,7 @@ import XCTest
 
 // 钉住搜索框按键路由：物理方向键、Emacs 键、带修饰符的方向键、Esc、斜杠与普通字符各自
 // 落到哪个动作。这部分逻辑原本埋在 UI 的本地事件监视器里、没有任何测试。
-final class SearchKeyRouterTests: XCTestCase {
+nonisolated final class SearchKeyRouterTests: XCTestCase {
 
     // MARK: 物理方向键（无修饰符）
 

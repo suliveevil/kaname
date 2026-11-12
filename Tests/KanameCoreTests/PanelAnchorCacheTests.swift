@@ -5,7 +5,7 @@ import XCTest
 /// A space or display change moves the windows the panel anchored to, so the cached frames
 /// must be thrown away rather than reused. These assertions pin the cache's only job: never
 /// let a frame outlive the pid (or the space) it was read for.
-final class PanelAnchorCacheTests: XCTestCase {
+nonisolated final class PanelAnchorCacheTests: XCTestCase {
     private let window = CGRect(x: 100, y: 100, width: 600, height: 400)
     private let element = CGRect(x: 200, y: 150, width: 100, height: 20)
 

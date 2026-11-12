@@ -4,7 +4,7 @@ import XCTest
 // 统计页的展开列表要把「只有键」的使用记录还原成「快捷键 + 命令 + 次数」。
 // 记录里没有标题，所以 join 与缺失时的诚实呈现都需要钉住。
 
-final class UsageBreakdownTests: XCTestCase {
+nonisolated final class UsageBreakdownTests: XCTestCase {
     private func item(_ title: String, chord: KeyChord, bundle: String?) -> BindingItem {
         BindingItem(chord: chord, title: title, group: ["File"], source: .menu, appBundleID: bundle)
     }

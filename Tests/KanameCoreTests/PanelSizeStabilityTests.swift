@@ -2,7 +2,7 @@ import XCTest
 @testable import KanameCore
 
 /// 面板窗口的高度：收窄列表不得改变窗口大小（否则视觉上就是"跳动"）。
-final class PanelSizeStabilityTests: XCTestCase {
+nonisolated final class PanelSizeStabilityTests: XCTestCase {
     private var settings: AppSettingsSnapshot {
         var value = AppSettingsSnapshot()
         value.columnCount = 1

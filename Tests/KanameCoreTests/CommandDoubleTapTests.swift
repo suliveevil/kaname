@@ -2,7 +2,7 @@ import XCTest
 @testable import KanameCore
 
 /// Characterizes the "press the trigger key twice to pin" gesture.
-final class ModifierDoubleTapTests: XCTestCase {
+nonisolated final class ModifierDoubleTapTests: XCTestCase {
     private let t0 = Date(timeIntervalSinceReferenceDate: 1_000_000)
 
     /// One quick press-and-release is only the first half of the gesture.

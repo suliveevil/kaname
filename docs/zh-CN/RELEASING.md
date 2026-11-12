@@ -38,17 +38,17 @@
 
 | 项 | 路径 |
 | --- | --- |
-| 旧钥匙串 | `~/Library/Keychains/kaname-signing.keychain-db` |
-| 旧口令 | `~/Library/Application Support/Kaname/signing/keychain-pass` |
+| 旧钥匙串 | `~/Library/Keychains/kagipeek-signing.keychain-db` |
+| 旧口令 | `~/Library/Application Support/KagiPeek/signing/keychain-pass` |
 
 `scripts/setup_signing.sh` 把新钥匙串**追加**到用户搜索列表而不是替换它，所以旧钥匙串仍然可用。临时用它签名：
 
 ```sh
-codesign --force --sign "Kaname Local" \
-  --keychain "$HOME/Library/Keychains/kaname-signing.keychain-db" /tmp/some-binary-copy
+codesign --force --sign "KagiPeek Local" \
+  --keychain "$HOME/Library/Keychains/kagipeek-signing.keychain-db" /tmp/some-binary-copy
 ```
 
-只有在 Kaname 正常安装运行一段时间之后，才删除旧钥匙串与证书。旧备份（签名为 `Kaname Local`）仍在保留时就删掉它，
+只有在 Kaname 正常安装运行一段时间之后，才删除旧钥匙串与证书。旧备份（签名为 `KagiPeek Local`）仍在保留时就删掉它，
 会让那些备份无法校验；两边都留着，直到旧备份过期出局。
 
 ### 新机器 / 恢复
@@ -60,11 +60,11 @@ codesign --force --sign "Kaname Local" \
 
 ## 步骤
 
-1. **定版本。** 改 `Kaname.xcodeproj/project.pbxproj` 里的 `MARKETING_VERSION`（Debug 与 Release 两个配置都要），
-   并确认 `CHANGELOG.md` 的条目写在 `[Unreleased]` 下。该文件是两条构建路径的唯一来源：Xcode 构建直接读它，
-   兜底构建（`scripts/build_swiftc.sh`）则用 `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` 覆写拿到手的 plist 里的
-   `CFBundleShortVersionString` / `CFBundleVersion`，两者不一致时打印模板里的值。只改 plist 的版本号，
-   过去会产出一个自称上一个版本的兜底构建。
+1. **定版本。** 改 `Kaname.xcodeproj/project.pbxproj` 里的 `MARKETING_VERSION` 与 `CURRENT_PROJECT_VERSION`
+   （Debug 与 Release 两个配置都要），并确认 `CHANGELOG.md` 的条目写在 `[Unreleased]` 下。工程文件是两条构建路径的版本来源：
+   Xcode 构建直接读它，兜底构建（`scripts/build_swiftc.sh`）则用 `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION`
+   覆写拿到手的 plist 里的 `CFBundleShortVersionString` / `CFBundleVersion`，两者不一致时打印模板里的值。
+   只改 plist 的版本号，过去会产出一个自称上一个版本的兜底构建。
 2. **测试。**
 
    ```sh
@@ -101,7 +101,7 @@ codesign --force --sign "Kaname Local" \
 5. **写说明。** GitHub release 的正文由发布脚本根据上一个 tag 以来的提交生成，所以唯一必须的输入是干净的提交历史。
    如果某次发布需要叙述文字——用户必须理解的行为变更、迁移步骤——写进 `docs/en/RELEASES.md` 的 **Highlights**、
    **Fixes worth knowing about** 或 **Upgrade notes** 下，并且引擎的行为要抄自代码，而不是抄自上一版说明。
-   单次发布手写的正文仍可放在 `docs/zh-CN/releases/<tag>.md`；它的优先级高于生成的那份。
+   单次发布手写的正文仍可放在 `docs/en/releases/<tag>.md`；它的优先级高于生成的那份。
 
 6. **发布。**
 
@@ -137,10 +137,9 @@ open /Applications/Kaname.app
 /usr/libexec/PlistBuddy -c "Print :KanameCommit" /Applications/Kaname.app/Contents/Info.plist
 ```
 
-回滚到改名前的 App 是另一套动作：退出 `com.suliveevil.kaname`，把
-`~/Library/Application Support/Kaname/backups/`（或旧的 `~/Library/Application Support/Kaname/backups/`）里
-`Kaname-*.app` 备份复制到 `/Applications/Kaname.app`，然后用 `com.suliveevil.kaname` 启动。
-先删掉 `/Applications/Kaname.app`，否则会有两个事件 tap 同时运行。
+回滚到改名前的 App 是另一套动作：先退出 `com.suliveevil.kaname` 并删除 `/Applications/Kaname.app`，否则会有两个事件 tap 同时运行。把
+`~/Library/Application Support/Kaname/backups/`（或旧的 `~/Library/Application Support/KagiPeek/backups/`）里的
+`KagiPeek-*.app` 备份复制到 `/Applications/KagiPeek.app`，然后用 `com.voltline.kagipeek` 启动。
 
 最后一条命令必须打印出备份名字里嵌入的提交号；在宣布回滚成功之前，把两者对比一下。备份携带的是它被安装时的签名，
 所以 `local` 备份保留辅助功能授权，而恢复 `adhoc` 备份会要求重新授权。

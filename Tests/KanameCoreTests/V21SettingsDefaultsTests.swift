@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class V21SettingsDefaultsTests: XCTestCase {
+nonisolated final class V21SettingsDefaultsTests: XCTestCase {
     func testPanelDefaults() {
         let settings = AppSettingsSnapshot()
         XCTAssertEqual(settings.panelPlacement, .coverWindow)

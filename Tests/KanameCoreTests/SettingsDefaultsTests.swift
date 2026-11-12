@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class SettingsDefaultsTests: XCTestCase {
+nonisolated final class SettingsDefaultsTests: XCTestCase {
     func testSmartIsDefault() {
         let settings = AppSettingsSnapshot()
         XCTAssertEqual(settings.usageSortField, .shortcut)

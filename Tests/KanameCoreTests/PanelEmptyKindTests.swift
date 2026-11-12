@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class PanelEmptyKindTests: XCTestCase {
+nonisolated final class PanelEmptyKindTests: XCTestCase {
     /// A missing permission outranks the scan spinner: waiting cannot fix it.
     func testPermissionWinsOverScanning() {
         XCTAssertEqual(

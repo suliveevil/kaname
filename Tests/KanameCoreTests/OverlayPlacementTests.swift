@@ -5,7 +5,7 @@ import XCTest
 /// The panel must still cover the front window after the content shrinks, and the palette
 /// must sit on that window rather than on the screen. Both are frame arithmetic, so they
 /// are asserted here instead of in a screenshot that would be taken at the size it produced.
-final class OverlayPlacementTests: XCTestCase {
+nonisolated final class OverlayPlacementTests: XCTestCase {
     private let visible = CGRect(x: 0, y: 0, width: 1440, height: 900)
     private let screenCentre = CGPoint(x: 720, y: 450)
 

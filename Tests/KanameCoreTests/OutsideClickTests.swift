@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class OutsideClickTests: XCTestCase {
+nonisolated final class OutsideClickTests: XCTestCase {
     private let app = ScreenRect(x: 100, y: 100, width: 800, height: 600)
     private let panel = ScreenRect(x: 300, y: 200, width: 400, height: 300)
 

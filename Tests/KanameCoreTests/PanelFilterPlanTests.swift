@@ -2,7 +2,7 @@ import XCTest
 @testable import KanameCore
 
 /// The filter's key decisions: what a key-down appends or pops, and which rows survive.
-final class PanelFilterPlanTests: XCTestCase {
+nonisolated final class PanelFilterPlanTests: XCTestCase {
     private let fill = BindingItem(
         chord: .combo([.function, .control], KeyToken("f")),
         title: "填充",

@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class ExternalConflictTests: XCTestCase {
+nonisolated final class ExternalConflictTests: XCTestCase {
     func testSystemHotkeyConflictsWithAppBinding() {
         let app = BindingItem(chord: .combo([.command], KeyToken("space")), title: "Custom", group: ["Edit"], source: .menu)
         let system = BindingItem(chord: .combo([.command], KeyToken("space")), title: "Spotlight", group: ["System hotkeys"], source: .system)

@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class NavigationKeyTests: XCTestCase {
+nonisolated final class NavigationKeyTests: XCTestCase {
     func testPlainArrows() {
         XCTAssertEqual(NavigationKey.direction(keyCode: 126, modifiers: []), .up)
         XCTAssertEqual(NavigationKey.direction(keyCode: 125, modifiers: []), .down)

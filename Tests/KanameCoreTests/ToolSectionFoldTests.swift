@@ -3,7 +3,7 @@ import XCTest
 
 /// The fold rule, tested where it lives: which cards show their rows, and what a filter does
 /// to them while it stands.
-final class ToolSectionFoldTests: XCTestCase {
+nonisolated final class ToolSectionFoldTests: XCTestCase {
     /// Each tool is its own card: opening one must not open the others.
     func testEveryToolIsItsOwnCard() {
         let expanded: Set<ConfigTool> = [.alfred]

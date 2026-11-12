@@ -8,7 +8,7 @@ import XCTest
 /// channels and the tolerant-rule branch are each pinned here, because getting any of them
 /// wrong is invisible: the shortcut stops firing, or the front app gets a key it never
 /// asked for.
-final class KeySwallowRulesTests: XCTestCase {
+nonisolated final class KeySwallowRulesTests: XCTestCase {
     // MARK: - The cheap refusal
 
     func testNothingCapturedMeansNothingSwallowed() {
@@ -121,5 +121,37 @@ final class KeySwallowRulesTests: XCTestCase {
         XCTAssertTrue(rules.shouldSwallow(keyCode: KeyCode.escape, modifiers: []))
         XCTAssertTrue(rules.shouldSwallow(keyCode: KeyCode.down, modifiers: []))
         XCTAssertFalse(rules.shouldSwallow(keyCode: KeyCode.up, modifiers: []))
+    }
+
+    // MARK: - Outstanding swallowed presses
+
+    func testOverlappingSwallowedPressesReleaseIndependently() {
+        var presses = SwallowedKeyPresses()
+        presses.record(KeyCode.escape)
+        presses.record(KeyCode.down)
+
+        XCTAssertTrue(presses.take(KeyCode.escape))
+        XCTAssertFalse(presses.contains(KeyCode.escape))
+        XCTAssertTrue(presses.contains(KeyCode.down))
+        XCTAssertTrue(presses.take(KeyCode.down))
+        XCTAssertFalse(presses.take(KeyCode.down))
+    }
+
+    func testOutstandingPressStillOwnsItsRepeatAfterCaptureRulesDisappear() {
+        var presses = SwallowedKeyPresses()
+        presses.record(KeyCode.down)
+
+        XCTAssertTrue(presses.contains(KeyCode.down))
+        XCTAssertFalse(presses.contains(KeyCode.up))
+        XCTAssertTrue(presses.take(KeyCode.down))
+        XCTAssertFalse(presses.contains(KeyCode.down))
+    }
+
+    func testUnrelatedReleaseDoesNotClearAnOutstandingPress() {
+        var presses = SwallowedKeyPresses()
+        presses.record(KeyCode.down)
+
+        XCTAssertFalse(presses.take(KeyCode.up))
+        XCTAssertTrue(presses.contains(KeyCode.down))
     }
 }

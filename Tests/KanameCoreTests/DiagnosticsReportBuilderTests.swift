@@ -5,7 +5,7 @@ import XCTest
 // 也无法在测试里构造。搬到 `DiagnosticsReportBuilder` 之后它只需要一个 `Input`，于是字段映射
 // 可以在这里钉住——端到端那条路径仍然保留，但它验证的是「装得出来」，这里验证的是「装得对」。
 
-final class DiagnosticsReportBuilderTests: XCTestCase {
+nonisolated final class DiagnosticsReportBuilderTests: XCTestCase {
     private func input(
         generatedAt: Date = Date(timeIntervalSince1970: 1_700_000_000),
         settings: AppSettingsSnapshot = AppSettingsSnapshot(),

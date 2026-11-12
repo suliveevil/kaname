@@ -2,7 +2,7 @@ import XCTest
 @testable import KanameCore
 
 /// macOS 不给符号热键名称（233 条全空），名字只能我们来。这里钉住「认识的给名字、不认识的不乱猜」。
-final class SystemHotkeyNamesTests: XCTestCase {
+nonisolated final class SystemHotkeyNamesTests: XCTestCase {
     func testKnownSystemShortcutsHaveNames() {
         let spot = KeyChord.combo([.command], KeyToken("space"))
         XCTAssertEqual(SystemHotkeyNames.name(for: spot, language: .english), "Spotlight")

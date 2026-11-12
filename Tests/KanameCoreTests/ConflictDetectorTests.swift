@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class ConflictDetectorTests: XCTestCase {
+nonisolated final class ConflictDetectorTests: XCTestCase {
     func testDetectsDistinctTitlesOnSameChord() {
         let a = BindingItem(chord: .combo([.command], KeyToken("n")), title: "New", group: ["File"], source: .menu)
         let b = BindingItem(chord: .combo([.command], KeyToken("n")), title: "New Window", group: ["File"], source: .menu)

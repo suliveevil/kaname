@@ -19,7 +19,8 @@ nonisolated struct InjectionTarget: Equatable, Sendable {
 /// `.cancelled` is the one case that can follow a partly posted multi-step chord.
 nonisolated enum InjectionOutcome: Equatable, Sendable {
     case sent
-    /// The chord had no key steps, so there was nothing to type.
+    /// The chord had no key steps, or at least one step had no mappable key spelling.
+    /// No events were posted: the complete injection plan is resolved before the first key.
     case emptyChord
     /// The target process is gone: the app quit or was relaunched since the scan.
     case targetMissing

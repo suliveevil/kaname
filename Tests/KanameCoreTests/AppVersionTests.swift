@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class AppVersionTests: XCTestCase {
+nonisolated final class AppVersionTests: XCTestCase {
     func testVersionShowsCommitInsteadOfBuildNumber() {
         XCTAssertEqual(
             AppVersion.display(shortVersion: "2.2.0", commit: "66e5582"),
