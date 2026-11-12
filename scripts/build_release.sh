@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Builds a Release .app, signs it (Developer ID when available, ad-hoc otherwise),
+# Builds a Release .app, signs it (Developer ID, stable Kaname Local, or ad-hoc),
 # optionally notarizes it, and packages a DMG under build/.
 #
 # Usage:
@@ -156,11 +156,15 @@ hdiutil create -volname "Kaname" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/d
 # The DMG is what users download, so it carries its own signature and notarization: a
 # notarized app inside an unsigned disk image is still stopped by Gatekeeper.
 if [ -n "$IDENTITY" ]; then
-    if [ -n "$SIGN_KEYCHAIN" ]; then
-        codesign --force --timestamp --sign "$IDENTITY" --keychain "$SIGN_KEYCHAIN" "$DMG"
-    else
-        codesign --force --timestamp --sign "$IDENTITY" "$DMG"
+    DMG_SIGN_ARGS=(--force --sign "$IDENTITY")
+    # Match app signing: only Developer ID builds depend on Apple's timestamp service.
+    if [ "$IDENTITY" != "Kaname Local" ]; then
+        DMG_SIGN_ARGS+=(--timestamp)
     fi
+    if [ -n "$SIGN_KEYCHAIN" ]; then
+        DMG_SIGN_ARGS+=(--keychain "$SIGN_KEYCHAIN")
+    fi
+    codesign "${DMG_SIGN_ARGS[@]}" "$DMG"
     codesign --verify --strict "$DMG"
     if [ -n "${KANAME_NOTARY_PROFILE:-}" ]; then
         xcrun notarytool submit "$DMG" --keychain-profile "$KANAME_NOTARY_PROFILE" --wait

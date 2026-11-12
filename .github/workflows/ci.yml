@@ -64,6 +64,8 @@ jobs:
       # builds or the Release-only hardening settings.
       - name: Build app (Release)
         run: |
+          # Without pipefail a failed xcodebuild is hidden by tail's successful exit status.
+          set -o pipefail
           xcodebuild \
             -project Kaname.xcodeproj \
             -scheme Kaname \

@@ -48,7 +48,7 @@ git worktree list                       # 核对路径与分支
 - 不 `checkout` / `merge` / `rebase` `main`，不 `push`，不跑 `scripts/install.sh`。
 - 不改 `/Applications`、备份目录、签名钥匙串。
 - `build/`、`DerivedData/` 各自一份：共享增量构建会把旧 `AppIcon.icns` 之类带进安装包。
-- `AGENTS.md`、`scripts/`、图标资源、CI 是共享契约，只在主工作树改；`main` 推进后自己 `rebase main`。
+- `AGENTS.md`、`scripts/`、图标资源、CI 是共享契约，只在主工作树改；`main` 推进后，在自己的 worktree 里把当前 agent 分支 rebase 到最新 `main`（不修改 `main` 本身）。
 - 只跑 `swift test --disable-sandbox` 与本地构建；按层切任务（`Core/Pure`、`Core/AX`、`Core/Engine`），
   分支短命、小步提交。
 
@@ -75,7 +75,7 @@ git worktree prune
 
 提交信息用 `type:` 前缀（`feat:`、`fix:`、`docs:`、`test:`、`chore:`），正文说改了什么、为什么；
 用户可见的变更在同一次提交里进 `CHANGELOG.md`：按 [CONTRIBUTING](docs/zh-CN/CONTRIBUTING.md) 写进
-`## [Unreleased]`，该段当前不存在，第一次用时补建——发布说明由提交历史生成。
+`## [Unreleased]`；该段已存在时直接追加，不存在时补建——发布说明由提交历史生成。
 
 > 理由与例外（单 agent、串行小改、3–5 个 worktree 的收益上限）见
 > [CONTRIBUTING](docs/zh-CN/CONTRIBUTING.md) 的「并行代理与 worktree」。

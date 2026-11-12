@@ -15,6 +15,8 @@ VERSION="$(sed -n 's/.*MARKETING_VERSION = \(.*\);/\1/p' Kaname.xcodeproj/projec
 TAG="v${VERSION}"
 DMG="build/Kaname-${VERSION}.dmg"
 NOTES="docs/en/releases/${TAG}.md"
+HEAD_COMMIT="$(git rev-parse HEAD)"
+TAG_COMMIT="$(git rev-parse --verify "$TAG^{}" 2>/dev/null || true)"
 
 if ! gh auth status >/dev/null 2>&1; then
     echo "error: GitHub CLI is not authenticated. Run: gh auth login" >&2
@@ -26,7 +28,7 @@ fi
 # new tag. `build_release.sh` stamps its output with the version and the commit it was built
 # from; anything else — no stamp, an older commit, a dirty tree — rebuilds first.
 STAMP="$ROOT/build/.release-stamp"
-EXPECTED="$(printf '%s %s' "$VERSION" "$(git rev-parse HEAD)")"
+EXPECTED="$(printf '%s %s' "$VERSION" "$HEAD_COMMIT")"
 STAMPED="$(cat "$STAMP" 2>/dev/null || true)"
 if [ ! -f "$DMG" ] || [ "$STAMPED" != "$EXPECTED" ]; then
     echo "==> $DMG is missing or stale (stamp: ${STAMPED:-none}, expected: $EXPECTED); rebuilding"
@@ -38,10 +40,16 @@ if [ ! -f "$DMG" ] || [ "$STAMPED" != "$EXPECTED" ]; then
 fi
 
 # The notes are a per-release file when one exists (a hand-written body), and otherwise the
-# commits since the previous tag: the repository keeps one merged record in docs/RELEASES.md
+# commits since the previous tag: the repository keeps one merged record in docs/en/RELEASES.md
 # rather than a file per version, so the generated body is the normal case, not a failure.
 if [ ! -f "$NOTES" ]; then
-    PREVIOUS="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+    # On a retry the current tag already points at HEAD. Describe its parent so the
+    # generated notes still cover this release instead of producing "changes since itself".
+    if [ -n "$TAG_COMMIT" ]; then
+        PREVIOUS="$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)"
+    else
+        PREVIOUS="$(git describe --tags --abbrev=0 HEAD 2>/dev/null || true)"
+    fi
     NOTES="$(mktemp -t kaname-release-notes)"
     trap 'rm -f "$NOTES"' EXIT
     {
@@ -57,13 +65,18 @@ if [ ! -f "$NOTES" ]; then
             git log --no-merges --pretty='- %s' -n 20
         fi
         echo
-        echo "Full record: https://github.com/suliveevil/kaname/blob/main/docs/RELEASES.md"
+        echo "Full record: https://github.com/suliveevil/kaname/blob/main/docs/en/RELEASES.md"
     } > "$NOTES"
     echo "==> No hand-written notes for $TAG; generated them from the commits"
 fi
 
-if git rev-parse "$TAG" >/dev/null 2>&1; then
-    echo "==> Tag $TAG already exists locally"
+if [ -n "$TAG_COMMIT" ]; then
+    if [ "$TAG_COMMIT" != "$HEAD_COMMIT" ]; then
+        echo "error: tag $TAG points at $TAG_COMMIT, but the DMG was built from $HEAD_COMMIT" >&2
+        echo "       Move or recreate the tag deliberately before publishing." >&2
+        exit 1
+    fi
+    echo "==> Tag $TAG already exists locally and points at HEAD"
 else
     git tag -a "$TAG" -m "Kaname $VERSION"
 fi

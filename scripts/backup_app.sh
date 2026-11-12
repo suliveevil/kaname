@@ -88,9 +88,11 @@ prune_plan() {
     all="$(backups)"
     [ -n "$all" ] || return 0
     count="$(printf '%s\n' "$all" | wc -l | tr -d ' ')"
-    age=$((count - KEEP + 1))
+    # The dry run predicts the state after one more backup. Within the retention limit,
+    # there is no deletion to predict; otherwise prune exactly the post-backup overflow.
+    age=$((count + 1 - KEEP))
     if [ "$age" -lt 1 ]; then
-        age=1
+        return 0
     fi
     printf '%s\n' "$all" | head -n "$age"
 }
