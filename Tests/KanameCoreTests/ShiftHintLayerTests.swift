@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class ShiftHintLayerTests: XCTestCase {
+nonisolated final class ShiftHintLayerTests: XCTestCase {
     func testLabelsRunFromZeroToNineThenALetter() {
         XCTAssertEqual(ShiftHintLayer.labels.count, 36)
         XCTAssertEqual(ShiftHintLayer.label(forIndex: 0), "0")

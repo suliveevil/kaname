@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class KeyChordTests: XCTestCase {
+nonisolated final class KeyChordTests: XCTestCase {
     func testDescriptorParsing() {
         let chord = KeyChord(descriptor: "cmd+shift+3")
         XCTAssertEqual(chord.steps.count, 1)

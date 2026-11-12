@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class PermissionGuidePlacementTests: XCTestCase {
+nonisolated final class PermissionGuidePlacementTests: XCTestCase {
     // A common single-screen layout: 1920×1080 panel with a 25 pt menu bar / dock area.
     private let visibleFrame = CGRect(x: 0, y: 25, width: 1920, height: 1055)
     private let panelSize = CGSize(width: 300, height: 170)

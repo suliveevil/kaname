@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class SearchCorpusTests: XCTestCase {
+nonisolated final class SearchCorpusTests: XCTestCase {
     private func item(_ modifiers: ModifierSet, _ key: String, _ title: String, group: [String] = ["Edit"]) -> BindingItem {
         BindingItem(chord: .combo(modifiers, KeyToken(key)), title: title, group: group, source: .menu)
     }

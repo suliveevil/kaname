@@ -179,13 +179,14 @@ v2.1.0 made the panel **persistent**: the auto-hide delay and its setting were r
 - switching the frontmost app or the active Space also closes it, and refreshes the menu scan once;
 - you press a **complete shortcut** — the panel highlights it for about 0.4 s and closes;
 - you press **Esc**;
+- you click **outside the panel**;
 - you press the **panel hotkey** (or the **switch panel/search** hotkey) again.
 
 Releasing the modifiers you were holding does not close it, and does not clear the filter. If a focus notification was missed and a stale panel survives on another Space, the next trigger press closes it and opens a fresh one in the same gesture — you never have to press twice. There is still no timer: focus, not elapsed time, ends a panel session.
 
-## Why does Esc close the panel, and why can't I just click away?
+## Why does Esc close the panel, and what happens when I click away?
 
-Esc is the panel's explicit "dismiss" gesture. It is matched on the key code before anything else, so it works with or without other modifiers: ⌥⌘Esc closes the panel as well, and that press never reaches the front app. Clicking outside the panel is not a dismissal because the panel is non-activating: clicks elsewhere go to the front app as usual, so an outside click cannot be relied on to close it. Esc plus the panel/switch hotkey give you a predictable way out.
+Esc is the panel's explicit "dismiss" gesture. It is matched on the key code before anything else, so it works with or without other modifiers: ⌥⌘Esc closes the panel as well, and that press never reaches the front app. A left or right click outside the panel or search palette also dismisses it. When that click is inside the front app's window, Kaname consumes the press and its matching release so dismissing the surface does not also activate a control; other outside clicks pass through, and ordinary focus-loss rules may dismiss the surface as well.
 
 ## Why does the shortcut I press still reach the app?
 
@@ -225,7 +226,7 @@ The panel keeps an ordered queue of what you added, and **⌫** takes back one t
 
 ## Why doesn't ⌘F filter the panel?
 
-⌘F is still the front app's chord (or one of Kaname's hotkeys — search is ⌃⌥⌘F by default), so it is not a filter token. The filter only accepts a lowercase letter when the modifiers on that key press are already in the queue; a letter pressed with a modifier the queue does not hold belongs to the chord/hotkey path. To narrow with F, press ⌃ **while the panel is open**, then F: the queue becomes `⌃ f` and the list keeps only menu items that carry both. An extra ⌘ on the F press is never stepped on — only a modifier already in the queue turns the letter into a filter token.
+⌘F is still the front app's chord (or one of Kaname's hotkeys — search is ⌃⌥⌘F by default), so it is not a filter token. Letters enter the filter only when the queue is already nonempty and the key arrives without Control, Option or Command; Shift is allowed for a capital letter. A modified letter therefore remains chord/hotkey input even when its modifiers match the queue. To narrow with F, press and release ⌃ **while the panel is open**, then press bare F: the queue becomes `⌃ f` and the list keeps only menu items that match both terms.
 
 ## Why did the panel copy instead of running the menu item?
 
@@ -287,7 +288,7 @@ This is a macOS privacy protection, not a Kaname bug. See [PERMISSIONS.md](PERMI
 
 ## Why is there no Dock icon?
 
-Kaname is an `LSUIElement` agent app: it lives in the menu bar with no Dock icon and opens no window at launch. The menu bar icon opens the panel, the palette and Settings; ⌘, opens Settings from inside any of its windows.
+Kaname is an `LSUIElement` agent app: it lives in the menu bar with no Dock icon by default. With Accessibility already granted, launch opens no app window and shows the menu bar icon; when that permission is missing, the permission guide opens automatically. The menu bar icon opens the panel, the palette and Settings; ⌘, opens Settings from inside any of its windows. **Settings → General → Show a Dock icon as well** can restore the Dock icon.
 
 ## Why can't I minimise the Settings window?
 

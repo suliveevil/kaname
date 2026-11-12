@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class DescriptionCleanerTests: XCTestCase {
+nonisolated final class DescriptionCleanerTests: XCTestCase {
     func testCollapsesWhitespaceAndStripsHint() {
         XCTAssertEqual(DescriptionCleaner.clean("  Save   As…\t⌘S "), "Save As…")
         XCTAssertEqual(DescriptionCleaner.clean("Open\u{00A0}Recent"), "Open Recent")

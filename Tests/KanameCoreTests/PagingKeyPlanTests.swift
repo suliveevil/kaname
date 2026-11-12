@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class PagingKeyPlanTests: XCTestCase {
+nonisolated final class PagingKeyPlanTests: XCTestCase {
     /// Each of the four pairs maps its first character to previous and its second to next.
     func testEachPairMapsBothDirections() {
         let expected: [(PagingPair, Character, Character)] = [

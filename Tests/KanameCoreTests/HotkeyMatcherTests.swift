@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class HotkeyMatcherTests: XCTestCase {
+nonisolated final class HotkeyMatcherTests: XCTestCase {
     private let hyper = HotkeySpec(keyCode: 40, modifiers: [.control, .option, .shift, .command])
 
     func testExactModifiers() {

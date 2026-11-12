@@ -2,7 +2,7 @@ import XCTest
 @testable import KanameCore
 
 /// 菜单路径分层加权：越靠近命令本身的层级，权重越高（Menu-Bar-Search 的祖先逐层减半）。
-final class MenuPathWeightTests: XCTestCase {
+nonisolated final class MenuPathWeightTests: XCTestCase {
     private func item(_ title: String, group: [String]) -> BindingItem {
         BindingItem(chord: .combo([.command], KeyToken("a")), title: title, group: group, source: .menu)
     }

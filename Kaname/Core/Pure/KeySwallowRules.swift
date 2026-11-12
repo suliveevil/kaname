@@ -76,3 +76,26 @@ nonisolated struct KeySwallowRules: Equatable {
         return false
     }
 }
+
+/// Key-downs the tap consumed and whose matching key-ups it must consume too.
+///
+/// A set, rather than one remembered key: two swallowed keys can be held at once, and
+/// releasing either one must not make the other one's release (or auto-repeat) leak into
+/// the front app after the surface has closed and its capture rules have gone away.
+nonisolated struct SwallowedKeyPresses: Equatable, Sendable {
+    private var keyCodes: Set<UInt16> = []
+
+    mutating func record(_ keyCode: UInt16) {
+        keyCodes.insert(keyCode)
+    }
+
+    func contains(_ keyCode: UInt16) -> Bool {
+        keyCodes.contains(keyCode)
+    }
+
+    /// True only for the release of a consumed press. Taking the code also clears it, so a
+    /// later press is judged against the current capture rules instead of an old surface.
+    mutating func take(_ keyCode: UInt16) -> Bool {
+        keyCodes.remove(keyCode) != nil
+    }
+}

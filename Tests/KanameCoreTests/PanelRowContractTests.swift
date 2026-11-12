@@ -12,7 +12,7 @@ import XCTest
 /// 这两条是同一个函数的两端：行数为 1 时落到 0（可立即执行），行数大于 1 且上一次选择
 /// 已失效时落到 -1（宁可什么都不做，也不要误执行排序第一的那个快捷键）。判据放在纯
 /// 逻辑里，是因为视图层拿到的是 Int 而不是 Binding，出问题时看不出错在哪一端。
-final class PanelSelectionContractTests: XCTestCase {
+nonisolated final class PanelSelectionContractTests: XCTestCase {
     func testNoRowsMeansNoSelection() {
         XCTAssertEqual(PanelSelection.resolved(previous: -1, rowCount: 0), -1)
         XCTAssertEqual(PanelSelection.resolved(previous: 4, rowCount: 0), -1)
@@ -57,7 +57,7 @@ final class PanelSelectionContractTests: XCTestCase {
 /// 钉住的不是某个具体像素，而是三条不变量：菜单路径列在窄面板上整列消失（否则标题会
 /// 被挤没）、快捷键列有上下限（长快捷键不至于吃掉标题，短快捷键也不至于塌成一个点）、
 /// 标题列永远不小于可读下限 —— 宁可让三列溢出，也不能让命令名读不出来。
-final class RowLayoutContractTests: XCTestCase {
+nonisolated final class RowLayoutContractTests: XCTestCase {
     private func assertClose(
         _ actual: Double,
         _ expected: Double,
@@ -209,7 +209,7 @@ final class RowLayoutContractTests: XCTestCase {
 /// 引擎画 chevron（`PanelRow.isGroup`）和处理点击（`ShortcutEngine.activate`）用的是同一
 /// 个入口 `KeyChord.isFinalStroke`，所以回归网钉在它上面：chevron 与点击给出不同答案，
 /// 正是这个 bug 的形状。
-final class ChordDescentContractTests: XCTestCase {
+nonisolated final class ChordDescentContractTests: XCTestCase {
     private let leaf = KeyChord.combo([.command], KeyToken("c"))
     private let twoStep = KeyChord([
         .combo([.command], KeyToken("k")),
@@ -276,7 +276,7 @@ final class ChordDescentContractTests: XCTestCase {
 
 /// 用户按住 ⌘ 收窄列表时，系统报上来的事件自带 ⌘。若不把按住的修饰键剥掉，⌘↩ 会被
 /// 判成「复制」，收窄态下 Return 就变成了复制而不是执行 —— 正是本轮的诉求。
-final class RowKeyHeldModifierContractTests: XCTestCase {
+nonisolated final class RowKeyHeldModifierContractTests: XCTestCase {
     private let run = HotkeySpec.legacyRunRowDefault // ↩
     private let copy = HotkeySpec.legacyCopyRowDefault // ⌘↩
 
@@ -344,7 +344,7 @@ final class RowKeyHeldModifierContractTests: XCTestCase {
 
 // MARK: - 修饰键集合
 
-final class ModifierSetSubtractionTests: XCTestCase {
+nonisolated final class ModifierSetSubtractionTests: XCTestCase {
     private func mods(_ members: ModifierSet...) -> ModifierSet {
         members.reduce(ModifierSet(rawValue: 0)) { $0.union($1) }
     }
@@ -387,7 +387,7 @@ final class ModifierSetSubtractionTests: XCTestCase {
 
 /// 把上面三块拼起来：面板收窄到唯一一行时，这一行既被选中、又是叶子行，所以 Return
 /// 和点击都会执行，而不是「再压一层前缀」或「什么都没选中」。
-final class NarrowedPanelContractTests: XCTestCase {
+nonisolated final class NarrowedPanelContractTests: XCTestCase {
     /// 按住 ⌘ 之后只剩 ⌘C 一行：自动选中它，且它不再下钻。
     func testSingleRemainingLeafRowIsSelectedAndRunnable() {
         let items = [

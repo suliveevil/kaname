@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class UsageStatisticsTests: XCTestCase {
+nonisolated final class UsageStatisticsTests: XCTestCase {
     func testRecordAccumulates() {
         var stats = UsageStatistics()
         let key = "*|8:c"

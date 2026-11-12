@@ -6,7 +6,7 @@ import XCTest
 ///
 /// Every number here is pure arithmetic, so "the last row is hidden" is an assertion
 /// rather than something only a screenshot could catch.
-final class PanelFitTests: XCTestCase {
+nonisolated final class PanelFitTests: XCTestCase {
     private let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
 
     /// Header + rule + footer + the list's padding are the chrome; a row may never use it.

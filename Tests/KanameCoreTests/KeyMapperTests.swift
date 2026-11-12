@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class KeyMapperTests: XCTestCase {
+nonisolated final class KeyMapperTests: XCTestCase {
     func testSpecialKeys() {
         XCTAssertEqual(KeyMapper.token(forKeyCode: UInt16(123)), KeyToken("left"))
         XCTAssertEqual(KeyMapper.token(forKeyCode: UInt16(122)), KeyToken("f1"))

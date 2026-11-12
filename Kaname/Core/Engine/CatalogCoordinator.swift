@@ -257,6 +257,11 @@ final class CatalogCoordinator {
         state.panelFilterCorpusKey = nil
         recomputeConflicts(state.catalog.items)
         resetConflictOwnerFilter()
+        publishInputState()
+        if state.panel.isVisible {
+            rebuildPanel()
+        }
+        refreshSearch()
     }
 
     /// Reads the third-party config tools, off the main actor.
@@ -294,6 +299,10 @@ final class CatalogCoordinator {
         state.panelFilterCorpusKey = nil
         recomputeConflicts(state.catalog.items)
         resetConflictOwnerFilter()
+        if state.panel.isVisible {
+            rebuildPanel()
+        }
+        refreshSearch()
         Diag.info(.scan, "config scan: \(result.totalCount) shortcuts")
     }
 }

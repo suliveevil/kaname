@@ -72,10 +72,7 @@ final class ShortcutEngine: ObservableObject {
         localization: localization,
         presenters: presenters,
         frontmostBundleID: { [weak self] in self?.appContext.frontmost?.bundleID },
-        injectionTargetForFrontmost: { [weak self] in
-            guard let frontmost = self?.appContext.frontmost else { return nil }
-            return InjectionTarget(processID: frontmost.pid, bundleID: frontmost.bundleID)
-        },
+        injectionTargetForFrontmost: { [weak self] in self?.currentInjectionTarget },
         dismissPanel: { [weak self] in self?.dismissPanel() }
     )
     /// Scanning policy: whom to scan, which generation may publish, and which external
@@ -123,6 +120,8 @@ final class ShortcutEngine: ObservableObject {
         isPreviewing: { [weak self] in self?.isPreviewing ?? false },
         dismissPanel: { [weak self] in self?.dismissPanel() },
         activatePanel: { [weak self] in self?.activatePanel() },
+        adoptCursorReturn: { [weak self] in self?.adoptCursorReturnForCurrentSession() },
+        scheduleCursorReturn: { [weak self] in self?.scheduleCursorReturn() },
         externalBindings: { [weak self] in self?.externalBindings ?? [] }
     )
     /// The panel's session: rows, ordering, paging, selection and row actions.
@@ -135,6 +134,7 @@ final class ShortcutEngine: ObservableObject {
         isPreviewing: { [weak self] in self?.isPreviewing ?? false },
         availableVisibleFrame: { [weak self] in self?.presenters.panel.targetVisibleFrame() },
         frontmostName: { [weak self] in self?.appContext.frontmost?.name ?? "" },
+        injectionTargetForFrontmost: { [weak self] in self?.currentInjectionTarget },
         dismissPanel: { [weak self] in self?.dismissPanel() },
         dismissEverything: { [weak self] in self?.dismissEverything() },
         onCapturedKeysChanged: { [weak self] in self?.updateKeyCapture() },
@@ -155,6 +155,9 @@ final class ShortcutEngine: ObservableObject {
     /// panel sent it, and the app the user was working in has lost their place. The panel
     /// puts it back when it closes.
     private var cursorReturnPoint: CGPoint?
+    /// The surface session that owns `cursorReturnPoint`. A deferred dismissal from an older
+    /// session must not clear or restore the point adopted by a newer panel or palette.
+    private var cursorReturnSession: SessionToken?
     /// How short a press has to be to count as a tap rather than a hold. Long enough that
     /// "hold ⌘ and glance" is never mistaken for "tick ⌘", short enough that a deliberate
     /// tap always lands inside it.
@@ -206,6 +209,13 @@ final class ShortcutEngine: ObservableObject {
     private var lastExternalFrontmost: NSRunningApplication?
 
     var frontmostProcessIdentifier: pid_t { appContext.frontmost?.pid ?? 0 }
+
+    /// The current external owner, captured synchronously before a surface closes or an AX
+    /// walk suspends. Every replay names this target; none reads a new front app later.
+    private var currentInjectionTarget: InjectionTarget? {
+        guard let frontmost = appContext.frontmost else { return nil }
+        return InjectionTarget(processID: frontmost.pid, bundleID: frontmost.bundleID)
+    }
 
     // MARK: - Lifecycle
 
@@ -286,8 +296,10 @@ final class ShortcutEngine: ObservableObject {
             // An app launching or quitting says nothing about another app's menus, and the
             // disk cache is keyed per app with its own freshness rules — so only the
             // in-memory snapshots go. Wiping the disk here would throw away good entries
-            // every time something in the background starts up.
+            // every time something in the background starts up. The searchable app list,
+            // on the other hand, must follow the same launch/termination notification.
             self?.catalogLoader.invalidateMemory()
+            self?.refreshRunningApps()
         }
         appContext.start()
 
@@ -398,6 +410,11 @@ final class ShortcutEngine: ObservableObject {
     }
 
     func stop() {
+        // A second instance rejected before start() must not clear the running instance's
+        // process-global Karabiner variable. Mark a real session stopped up front so late
+        // refresh work also observes the same state as the teardown below.
+        guard isStarted else { return }
+        isStarted = false
         state.armedTask?.cancel()
         state.liveTestPollingTask?.cancel()
         state.configScanTask?.cancel()
@@ -405,8 +422,7 @@ final class ShortcutEngine: ObservableObject {
         // First, before the monitor goes: a replay still waiting out its activation delay
         // would otherwise post its chord after the app has stopped listening. The palette's
         // activation hand-off is the same hazard one step earlier.
-        state.injectionTask?.cancel()
-        state.injectionTask = nil
+        state.cancelInjection()
         state.searchRunTask?.cancel()
         state.searchRunTask = nil
         monitorRetry?.cancel()
@@ -1274,11 +1290,20 @@ final class ShortcutEngine: ObservableObject {
     /// The tap swallowed this key, so the panel owes the app the shortcut: replay the
     /// assembled chord — ⌥⌘C, not C — the same way clicking a row does.
     private func replayComposed(_ item: BindingItem, probe: KeyChord) {
+        let target = currentInjectionTarget
         usageStore.record(usageKey: item.usageKey)
         dismissPanel()
+        guard let target else {
+            Diag.error(.inject, "composed replay has no captured target, nothing posted")
+            presenters.notices.showNotice(
+                text: localization.text(.injectTargetUnavailable),
+                kind: .failure
+            )
+            return
+        }
         Diag.info(
             .inject,
-            "replaying composed \(KeyFormatter.render(probe, style: .symbols)) into the front app"
+            "replaying composed \(KeyFormatter.render(probe, style: .symbols)) into the captured front app"
         )
         if state.settings.showExecutedHUD {
             presenters.notices.show(
@@ -1288,7 +1313,7 @@ final class ShortcutEngine: ObservableObject {
         }
         // Same rule as `RowRunner.runSystemHotkey`: one pending replay, and a handle the
         // shutdown path can cancel before it posts.
-        state.enqueueInjection(probe)
+        state.enqueueInjection(probe, to: target)
     }
 
     private func descend(_ probe: KeyChord) {
@@ -1467,7 +1492,8 @@ final class ShortcutEngine: ObservableObject {
             return
         }
         state.search.isVisible = false
-        cursorReturnPoint = Self.cursorPoint()
+        state.beginSurfaceSession()
+        adoptCursorReturnForCurrentSession()
         state.phase = .active
         // Nothing is composed on open: the trigger press is not a filter, and a hotkey's
         // own modifiers are part of the hotkey rather than a prefix. The panel starts on
@@ -1533,7 +1559,26 @@ final class ShortcutEngine: ObservableObject {
         // One run loop later: `showSearch()` closes the panel on its way to opening the
         // search palette, and pulling the pointer back out from under a surface that is
         // about to want it would be worse than leaving it where it is.
-        DispatchQueue.main.async { [weak self] in self?.putCursorBack() }
+        scheduleCursorReturn()
+    }
+
+    /// Gives the current surface ownership of the pointer origin. Moving between the panel
+    /// and search keeps the original point; an independent new session captures a fresh one
+    /// after the previous origin has been restored.
+    private func adoptCursorReturnForCurrentSession() {
+        if cursorReturnPoint == nil {
+            cursorReturnPoint = Self.cursorPoint()
+        }
+        cursorReturnSession = state.surfaceSessionToken
+    }
+
+    /// Defers restoration without capturing a bare, shared point. If another surface opens
+    /// first, it adopts a new token and this older closure becomes a no-op.
+    private func scheduleCursorReturn() {
+        guard let session = cursorReturnSession else { return }
+        DispatchQueue.main.async { [weak self] in
+            self?.putCursorBack(session: session)
+        }
     }
 
     /// Arms the tap to eat the click that dismisses the panel.
@@ -1551,15 +1596,17 @@ final class ShortcutEngine: ObservableObject {
     /// Only when it actually moved. A panel opened by hotkey and dismissed with Esc never
     /// took the pointer anywhere, and warping it then would only fight the user — the same
     /// point, announced as a jump.
-    private func putCursorBack() {
-        guard let origin = cursorReturnPoint else { return }
-        cursorReturnPoint = nil
+    private func putCursorBack(session: SessionToken) {
+        guard cursorReturnSession == session, let origin = cursorReturnPoint else { return }
         // A screenshot session is not a user session: moving the real pointer while a
         // preview is being captured would only ruin the capture.
         guard !isPreviewing else { return }
         // Nothing is showing any more: not the panel (it may have been reopened in the
         // meantime), and not the search palette, which has its own pointer to worry about.
+        // Do not consume the point on this branch: the visible surface still owns it.
         guard !state.panel.isVisible, !state.search.isVisible else { return }
+        cursorReturnPoint = nil
+        cursorReturnSession = nil
         guard let current = Self.cursorPoint() else { return }
         let moved = hypot(current.x - origin.x, current.y - origin.y)
         guard moved > 2 else { return }

@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class SemanticVersionTests: XCTestCase {
+nonisolated final class SemanticVersionTests: XCTestCase {
     func testParsing() {
         XCTAssertEqual(SemanticVersion("v1.2.0")?.description, "1.2.0")
         XCTAssertEqual(SemanticVersion("2")?.description, "2.0.0")

@@ -6,7 +6,7 @@ import XCTest
 /// the row has to be run by the panel instead of merely being selected — but only once the
 /// narrowed panel has converged on that single row. While other rows are still on screen the
 /// same keystroke remains a way to search.
-final class FilterChordCompletionTests: XCTestCase {
+nonisolated final class FilterChordCompletionTests: XCTestCase {
     private func item(
         _ chord: KeyChord,
         _ title: String = "T",

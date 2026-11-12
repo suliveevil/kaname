@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class PanelThemeTests: XCTestCase {
+nonisolated final class PanelThemeTests: XCTestCase {
     private func decode(_ raw: String) throws -> PanelTheme {
         try JSONDecoder().decode(PanelTheme.self, from: Data("\"\(raw)\"".utf8))
     }

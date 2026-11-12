@@ -4,7 +4,7 @@ import XCTest
 /// The tap's failure line is the only evidence a freeze leaves behind, so its shape is part
 /// of the contract: every investigation so far — eleven `attempt 1`s, `trusted=true` through
 /// five revocations, a `stood_ms` of two milliseconds — was read off this string.
-final class TapDiagnosticsTests: XCTestCase {
+nonisolated final class TapDiagnosticsTests: XCTestCase {
     func testTheReEnableLineKeepsItsFieldOrderAndWording() {
         let report = TapDiagnostics(
             trigger: .timeout,

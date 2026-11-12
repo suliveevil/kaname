@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class EnginePolicyTests: XCTestCase {
+nonisolated final class EnginePolicyTests: XCTestCase {
     func testDisabledRowsAreNotActionable() {
         XCTAssertFalse(RowEligibility.canActivate(isEnabled: false))
         XCTAssertTrue(RowEligibility.canActivate(isEnabled: true))

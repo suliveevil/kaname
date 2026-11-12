@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class PanelOrderingTests: XCTestCase {
+nonisolated final class PanelOrderingTests: XCTestCase {
     private func item(_ modifiers: ModifierSet, _ key: String, _ title: String) -> BindingItem {
         BindingItem(
             chord: .combo(modifiers, KeyToken(key)),

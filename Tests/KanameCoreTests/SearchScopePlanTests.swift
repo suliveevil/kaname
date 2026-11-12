@@ -3,7 +3,7 @@ import XCTest
 
 /// Pins the scope-reset rules `ShortcutEngine.selectSearchScope` used to inline: what a scope
 /// switch clears, and which load state the palette starts in.
-final class SearchScopePlanTests: XCTestCase {
+nonisolated final class SearchScopePlanTests: XCTestCase {
     private func snapshot() -> SearchSnapshot {
         var search = SearchSnapshot()
         search.query = "find"

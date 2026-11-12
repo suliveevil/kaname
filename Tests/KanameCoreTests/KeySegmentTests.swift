@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class KeySegmentTests: XCTestCase {
+nonisolated final class KeySegmentTests: XCTestCase {
     /// The chord is split into glyphs so a held modifier can be lit instead of hidden. The
     /// split must therefore keep the shortcut's text intact — including the ⌘ that used to
     /// be stripped while it was held.

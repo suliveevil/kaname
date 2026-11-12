@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class SearchSessionResetTests: XCTestCase {
+nonisolated final class SearchSessionResetTests: XCTestCase {
     func testReopeningStartsFromAnEmptyQueryAndFirstRow() {
         var snapshot = SearchSnapshot()
         snapshot.query = "undo"

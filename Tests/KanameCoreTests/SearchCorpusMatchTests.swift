@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class SearchCorpusMatchTests: XCTestCase {
+nonisolated final class SearchCorpusMatchTests: XCTestCase {
     private let items = [
         BindingItem(chord: .combo([.command], KeyToken("p")), title: "Print", group: ["File"], source: .menu),
         BindingItem(chord: .combo([.command], KeyToken("s")), title: "Save", group: ["File"], source: .menu),

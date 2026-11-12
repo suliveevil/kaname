@@ -4,7 +4,7 @@ import XCTest
 // 面板现在有三个来源：前台 App 的命令、系统热键、配置工具（Keyboard Maestro / Alfred / …）。
 // 三块永远按固定顺序拼接、不交错，所以这些测试钉住「顺序」「计数」「边界」和「不合并」。
 
-final class PanelSectionsTests: XCTestCase {
+nonisolated final class PanelSectionsTests: XCTestCase {
     private func item(
         _ title: String,
         chord: KeyChord,

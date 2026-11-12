@@ -5,7 +5,7 @@ import XCTest
 /// The notch and the menu bar live in the screen's top safe area. A panel that ignores it
 /// draws its top rows underneath them, which is the same class of bug as a hidden footer:
 /// pure arithmetic, so it is asserted rather than screenshotted.
-final class OverlayGeometryTests: XCTestCase {
+nonisolated final class OverlayGeometryTests: XCTestCase {
     private let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
 
     func testTopInsetFallsBackToTheScreenMargin() {

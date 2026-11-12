@@ -4,7 +4,7 @@ import XCTest
 /// The recovery branches of the drag guide. These are the states that cannot be reached by
 /// hand in a test run — closing System Settings, navigating away, cancelling the password
 /// prompt — so the table is the only place they are pinned down.
-final class PermissionGuideStateTests: XCTestCase {
+nonisolated final class PermissionGuideStateTests: XCTestCase {
     // MARK: - Happy path
 
     func testStartsDraggingAndStaysWhileSettingsIsUp() {

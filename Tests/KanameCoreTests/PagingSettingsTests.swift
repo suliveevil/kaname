@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class PagingSettingsTests: XCTestCase {
+nonisolated final class PagingSettingsTests: XCTestCase {
     func testDefaultAndSchemaVersion() {
         XCTAssertEqual(AppSettingsSnapshot().pagingPairs, [.semicolonQuote])
         XCTAssertEqual(AppSettingsSnapshot.currentSchemaVersion, 12)

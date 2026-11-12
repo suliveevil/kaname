@@ -2,7 +2,7 @@ import XCTest
 @testable import KanameCore
 
 /// The press that opens the panel is a trigger, never a filter.
-final class TriggerNarrowGateTests: XCTestCase {
+nonisolated final class TriggerNarrowGateTests: XCTestCase {
     /// Hold-to-open: the modifier is still down when the panel appears, so nothing narrows.
     func testTriggerHoldDoesNotNarrow() {
         XCTAssertEqual(

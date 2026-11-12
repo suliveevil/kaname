@@ -11,7 +11,7 @@ import XCTest
 ///
 /// 所有匹配函数都必须对它给出确定答案，否则它会在某一层被悄悄过滤掉 —— 这正是它
 /// 一开始进不了面板的原因（`hits` 曾经要求 nextKey 非空）。
-final class ShortcutlessChordTests: XCTestCase {
+nonisolated final class ShortcutlessChordTests: XCTestCase {
     func testEmptyChordIsACandidateAtTheRoot() {
         XCTAssertEqual(KeyChord.empty.relation(to: .empty), .candidate)
     }
@@ -44,7 +44,7 @@ final class ShortcutlessChordTests: XCTestCase {
 // MARK: - 面板命中
 
 /// 无快捷键的行必须能进面板（根层级），且必须能被 ⌘ 等修饰键收窄排除。
-final class ShortcutlessHitsTests: XCTestCase {
+nonisolated final class ShortcutlessHitsTests: XCTestCase {
     private func item(_ chord: KeyChord, title: String, axPath: String? = nil) -> BindingItem {
         BindingItem(
             chord: chord,
@@ -100,7 +100,7 @@ final class ShortcutlessHitsTests: XCTestCase {
 // MARK: - 排序
 
 /// 无快捷键的行排在所有快捷键之后：面板首先是一张快捷键参考卡。
-final class ShortcutlessOrderingTests: XCTestCase {
+nonisolated final class ShortcutlessOrderingTests: XCTestCase {
     private func item(_ chord: KeyChord, title: String) -> BindingItem {
         BindingItem(chord: chord, title: title, group: ["Edit"], source: .menu)
     }
@@ -145,7 +145,7 @@ final class ShortcutlessOrderingTests: XCTestCase {
 // MARK: - 身份与统计
 
 /// 没有和弦可作键，id 与 usageKey 必须另有依托，否则行会被合并、收藏会串味。
-final class ShortcutlessIdentityTests: XCTestCase {
+nonisolated final class ShortcutlessIdentityTests: XCTestCase {
     private func item(_ title: String, axPath: String?) -> BindingItem {
         BindingItem(
             chord: .empty,
@@ -197,7 +197,7 @@ final class ShortcutlessIdentityTests: XCTestCase {
 // MARK: - 不污染既有机制
 
 /// 空和弦不得渗进任何以「快捷键」为键的机制。
-final class ShortcutlessIsolationTests: XCTestCase {
+nonisolated final class ShortcutlessIsolationTests: XCTestCase {
     private func item(_ chord: KeyChord, title: String) -> BindingItem {
         BindingItem(chord: chord, title: title, group: ["Edit"], source: .menu, appBundleID: "com.apple.Safari")
     }

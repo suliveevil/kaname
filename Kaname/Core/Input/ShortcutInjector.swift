@@ -21,9 +21,10 @@ enum ShortcutInjector {
 
     /// Posts `chord` after making sure the app it belongs to is in front.
     ///
-    /// When `target` is nil the chord is replayed into whatever is frontmost — the system
-    /// hotkey path, where there is no owner to name. Otherwise the target is activated (if
-    /// needed), waited for, and verified; nothing is posted unless the verdict is to send.
+    /// The target is captured by the caller before any asynchronous menu-element walk. It is
+    /// activated if needed, waited for, and verified; nothing is posted unless the verdict is
+    /// to send. The whole chord is resolved before activation so an unmappable later step can
+    /// never leave a partial sequence in the app.
     ///
     /// Every suspension in here is a cancellation checkpoint. `Task.sleep` is the only one
     /// that reports cancellation at all, and swallowing it (`try?`) is how a cancelled
@@ -32,19 +33,15 @@ enum ShortcutInjector {
     @MainActor
     static func post(
         _ chord: KeyChord,
-        to target: InjectionTarget? = nil,
+        to target: InjectionTarget,
         delay: TimeInterval = 0.15
     ) async -> InjectionOutcome {
         if Task.isCancelled { return .cancelled }
-        let steps = chord.steps.filter { $0.key != nil }
-        guard !steps.isEmpty else {
+        guard let steps = InjectionPlan.steps(for: chord) else {
             // Nothing was posted, so nothing happened in the app — indistinguishable from a
             // command that ran and did nothing.
-            Diag.error(.inject, "empty chord, nothing posted")
+            Diag.error(.inject, "empty or unmappable chord, nothing posted")
             return .emptyChord
-        }
-        guard let target else {
-            return await postSteps(steps, target: nil)
         }
 
         // The activation itself is verified before the wait; the verdict is carried over so
@@ -183,19 +180,15 @@ enum ShortcutInjector {
     }
 
     @MainActor
-    private static func postSteps(_ steps: [KeyStep], target: InjectionTarget?) async -> InjectionOutcome {
+    private static func postSteps(_ steps: [InjectionStep], target: InjectionTarget) async -> InjectionOutcome {
         for (index, step) in steps.enumerated() {
             // Checked before every stroke, not just once at the start: a multi-step chord
             // cancelled half way must stop there instead of finishing the sequence.
             if Task.isCancelled { return .cancelled }
-            if let target, let refusal = stepRefusal(target, step: index) {
+            if let refusal = stepRefusal(target, step: index) {
                 return refusal
             }
-            guard let key = step.key, let keyCode = KeyMapper.keyCode(for: key) else {
-                Diag.error(.inject, "step skipped: no virtual key for \(step.key.map { "\($0)" } ?? "nil")")
-                continue
-            }
-            guard postKey(keyCode: keyCode, flags: ModifierSet.cgEventFlags(for: step.modifiers)) else {
+            guard postKey(keyCode: step.keyCode, flags: ModifierSet.cgEventFlags(for: step.modifiers)) else {
                 return .eventCreationFailed
             }
             // No gap after the last stroke: nothing follows it, so the only thing a trailing

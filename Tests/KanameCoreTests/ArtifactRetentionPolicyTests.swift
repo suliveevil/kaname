@@ -4,7 +4,7 @@ import XCTest
 // 崩溃报告和菜单缓存是磁盘上仅有的两处「无上限增长」的目录，淘汰规则是纯决策：
 // 输入日期、输出名字，所以边界可以在这里一一定住，不必真的建文件。
 
-final class ArtifactRetentionPolicyTests: XCTestCase {
+nonisolated final class ArtifactRetentionPolicyTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_700_000_000)
     private var day: TimeInterval { 24 * 60 * 60 }
 

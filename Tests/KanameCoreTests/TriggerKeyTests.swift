@@ -2,7 +2,7 @@ import XCTest
 @testable import KanameCore
 
 /// The trigger key is the only place that knows which side of a modifier was pressed.
-final class TriggerKeyTests: XCTestCase {
+nonisolated final class TriggerKeyTests: XCTestCase {
     private let leftShift: UInt16 = 56
     private let capsLock: UInt16 = 57
 

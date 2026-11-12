@@ -5,7 +5,7 @@ import XCTest
 ///
 /// 这条判定存在的理由很具体：面板和搜索面板都会暂时拿走键盘，回放前如果目标没有回到
 /// 前台，按键就会落进别的窗口，做出不可预料的事，看起来还像命令执行了。
-final class InjectionTargetPolicyTests: XCTestCase {
+nonisolated final class InjectionTargetPolicyTests: XCTestCase {
     private let target = InjectionTarget(processID: 42, bundleID: "com.example.app")
 
     func testMatchingActiveTargetIsAllowedToSend() {

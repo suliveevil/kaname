@@ -3,7 +3,7 @@ import XCTest
 
 /// 恢复闸门：一次已排队的重新启用会挡住重复通知，而一旦那次恢复没有成功执行，
 /// 闸门必须重新打开，否则后续禁用通知永远被丢弃、只能重启 App。
-final class TapRecoveryGateTests: XCTestCase {
+nonisolated final class TapRecoveryGateTests: XCTestCase {
     func testStoppedMonitorDoesNotStartRecovery() {
         let gate = TapRecoveryGate()
         XCTAssertFalse(gate.shouldHandleDisable(isRunning: false))

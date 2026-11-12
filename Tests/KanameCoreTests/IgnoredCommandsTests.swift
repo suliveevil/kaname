@@ -4,7 +4,7 @@ import XCTest
 // 忽略命令从「一份全局标题清单」升级为「可按 App 收窄的规则」。
 // 这两件事最容易出错：scope 的默认含义，以及旧设置能不能无损搬过来。
 
-final class IgnoredCommandsTests: XCTestCase {
+nonisolated final class IgnoredCommandsTests: XCTestCase {
     private func rule(_ title: String, _ bundleID: String? = nil) -> IgnoredCommand {
         IgnoredCommand(title: title, appBundleID: bundleID)
     }

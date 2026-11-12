@@ -4,6 +4,17 @@ All notable changes to this project are documented here, in the order the work h
 
 ## [Unreleased]
 
+### Fixed
+
+- Search replays now record usage only after a chord is posted, and app launch/termination notifications refresh the app list used by search scopes and conflict scans.
+- System-hotkey reloads and config-file scans now rebuild an open panel and refresh an open search palette instead of leaving the previous results visible.
+- A rejected second instance no longer clears the running instance's Karabiner panel signal; shutdown now starts only for an engine that actually started.
+- Overlapping swallowed key presses are tracked independently, so one key's release cannot expose another key's repeat or release to the app behind a dismissed surface.
+- Panel and search runs now capture their target app before asynchronous Accessibility resolution. Chord replay preflights every step, including alternate key spellings, before activating the target or posting an event; an empty or partly unmappable chord no longer reports a successful send.
+- Replay completions, search activation hand-offs and cursor restoration are owned by their surface session. Replacing a surface or stopping the engine invalidates old work instead of letting it inject into a later app or restore the pointer over a newer session.
+- The source build number is now 233 for version 2.3.3, distinct from the 232 used by 2.3.2. SwiftPM test hosts use explicit `nonisolated` isolation so the suite remains compatible with the Swift 6.1 CI toolchain.
+- Release CI propagates a failed Release build through its log pipeline. The release publisher refuses an existing tag that does not point at the commit being published, and a matching-tag retry generates notes from the previous release rather than from the current tag itself. Local-signed DMGs no longer require timestamp-network access, and backup dry runs no longer predict a deletion while the retention limit still has room.
+
 ## Kaname 2.3.3 (2026-11-07)
 
 ### Added
@@ -151,7 +162,7 @@ All notable changes to this project are documented here, in the order the work h
 ## Changed
 
 - Shortcut data source: the primary source is the live menu bar of the frontmost app; the static list is a fallback.
-- Bundle identifier changed from `com.suliveevil.kaname` to `com.suliveevil.kaname`.
+- Bundle identifier changed from `com.Voltline.KagiPeek` to `com.voltline.kagipeek`.
 - Minimum macOS version is 14.0 (Sonoma). The earlier project mixed 15.7 and 14 deployment targets; it now uses 14.0 consistently.
 - The default sort order is **Smart order**; every other order is still available.
 - Conflict detection also considers enabled macOS system shortcuts, and the conflict list shows where each clash comes from.

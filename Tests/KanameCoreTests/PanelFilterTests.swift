@@ -2,7 +2,7 @@ import XCTest
 @testable import KanameCore
 
 /// The token queue itself: order, toggling and ⌫.
-final class PanelFilterTests: XCTestCase {
+nonisolated final class PanelFilterTests: XCTestCase {
     func testTouchingTheSameModifierThreeTimesTogglesItBackInAtTheTail() {
         var filter = PanelFilter()
         filter.toggleModifier(.control)

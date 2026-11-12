@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class BuiltInCatalogTests: XCTestCase {
+nonisolated final class BuiltInCatalogTests: XCTestCase {
     func testCatalogSize() {
         XCTAssertEqual(BuiltInCatalog.entries.count, 100)
     }

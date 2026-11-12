@@ -4,7 +4,7 @@ import XCTest
 // 报告的脱敏是一次递归遍历：路径名是它唯一的输出证据，所以这里钉住「路径怎么拼」，
 // 而不是重复 `Sanitizer` 自己的规则测试。
 
-final class DiagnosticsRedactorTests: XCTestCase {
+nonisolated final class DiagnosticsRedactorTests: XCTestCase {
     func testNestedFieldsCarryTheirPath() {
         let outcome = DiagnosticsRedactor.redact([
             "settings": ["ignoredCommands": ["contact alice@example.com"]] as [String: Any],

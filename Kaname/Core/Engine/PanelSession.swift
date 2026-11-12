@@ -19,6 +19,7 @@ final class PanelSession {
     /// main screen, and counting rows against a different screen is how a page overflowed.
     private let availableVisibleFrame: () -> CGRect?
     private let frontmostName: () -> String
+    private let injectionTargetForFrontmost: () -> InjectionTarget?
     private let dismissPanel: () -> Void
     private let dismissEverything: () -> Void
     private let onCapturedKeysChanged: () -> Void
@@ -39,6 +40,7 @@ final class PanelSession {
         isPreviewing: @escaping () -> Bool,
         availableVisibleFrame: @escaping () -> CGRect?,
         frontmostName: @escaping () -> String,
+        injectionTargetForFrontmost: @escaping () -> InjectionTarget?,
         dismissPanel: @escaping () -> Void,
         dismissEverything: @escaping () -> Void,
         onCapturedKeysChanged: @escaping () -> Void,
@@ -52,6 +54,7 @@ final class PanelSession {
         self.isPreviewing = isPreviewing
         self.availableVisibleFrame = availableVisibleFrame
         self.frontmostName = frontmostName
+        self.injectionTargetForFrontmost = injectionTargetForFrontmost
         self.dismissPanel = dismissPanel
         self.dismissEverything = dismissEverything
         self.onCapturedKeysChanged = onCapturedKeysChanged
@@ -1058,14 +1061,26 @@ final class PanelSession {
             return
         }
         rebuildPanel()
+        // Capture both ownership facts before the element walk suspends. A different app may
+        // come forward while AX is resolving, and a new panel may even select the same row;
+        // neither may inherit this run's target or completion.
+        let session = state.surfaceSessionToken
+        let target = injectionTargetForFrontmost()
         Task { @MainActor [weak self] in
             guard let self else { return }
             let element = await self.rowRunner.resolveElement(forRowID: rowID)
+            guard self.state.surfaceSessionToken == session else { return }
             guard self.state.panel.runningRowID == rowID else { return }
             self.state.panel.endRunning(rowID: rowID)
             self.usageStore.record(usageKey: item.usageKey)
             self.dismissPanel()
-            await self.rowRunner.run(item, rowID: rowID, element: element, origin: .panel)
+            await self.rowRunner.run(
+                item,
+                rowID: rowID,
+                element: element,
+                origin: .panel,
+                target: target
+            )
         }
     }
 

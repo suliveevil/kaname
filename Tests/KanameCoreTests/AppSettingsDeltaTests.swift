@@ -12,7 +12,7 @@ import XCTest
 /// `testDescribedFieldsAreExactlyTheStoredProperties` until it is added to
 /// `describedFields`, and fails `testEveryDescribedFieldIsObserved` until the mutation table
 /// grows a case for it — which is also what proves the field is actually compared.
-final class AppSettingsDeltaTests: XCTestCase {
+nonisolated final class AppSettingsDeltaTests: XCTestCase {
     func testDescribedFieldsAreExactlyTheStoredProperties() {
         let stored = Mirror(reflecting: AppSettingsSnapshot()).children.compactMap(\.label)
         XCTAssertEqual(AppSettingsSnapshot.describedFields, Set(stored))

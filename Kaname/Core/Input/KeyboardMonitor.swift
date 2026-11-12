@@ -83,14 +83,15 @@ nonisolated final class KeyboardMonitor: @unchecked Sendable {
     /// The button whose press was swallowed, so its release is swallowed too: a release
     /// without a press is its own kind of surprise for the app that receives it.
     private var swallowedMouseButton: Int64?
-    /// The key code of a key-down this tap consumed, so its release is consumed too.
+    /// The key-downs this tap consumed, so their repeats and releases are consumed too.
     ///
     /// Matching on the press is not enough: the modifiers can change between the two events
     /// (⌘ released before the key it modified), which is exactly when the identifier stops
     /// matching and the front app is left holding a key that never came up. A composed
     /// stroke makes this certain — the panel dismisses itself on the key-down, so by the
-    /// release there is no tick left to recognise and the event would slip through.
-    private var swallowedKeyDownCode: UInt16?
+    /// release there is no tick left to recognise and the event would slip through. More
+    /// than one swallowed key can be outstanding, so one key's release cannot clear another.
+    private var swallowedKeyPresses = SwallowedKeyPresses()
 
     /// How many times the tap has been put back without an event getting through in between.
     private var health = TapHealth()
@@ -567,9 +568,10 @@ nonisolated final class KeyboardMonitor: @unchecked Sendable {
 
         case .keyDown:
             let (keyCode, keyEvent) = describe(event, kind: .keyDown)
-            // A repeat of a captured key has to be consumed too: letting it through would
-            // move the panel selection and scroll the front app at the same time.
-            let consume = shouldSwallow(
+            // A repeat of a captured key has to be consumed too, including after the panel
+            // has dismissed and removed the rule that captured its original press.
+            let repeatOfSwallowedPress = withLock { swallowedKeyPresses.contains(keyCode) }
+            let consume = repeatOfSwallowedPress || shouldSwallow(
                 keyCode: keyCode,
                 modifiers: keyEvent.modifiers,
                 characters: keyEvent.characters
@@ -666,21 +668,17 @@ nonisolated final class KeyboardMonitor: @unchecked Sendable {
         return nil
     }
 
-    /// Remembers a consumed key-down so its release is consumed as well.
+    /// Remembers a consumed key-down so its repeats and release are consumed as well.
     private func recordSwallowedKeyDown(_ keyCode: UInt16) {
-        withLock { swallowedKeyDownCode = keyCode }
+        withLock { swallowedKeyPresses.record(keyCode) }
     }
 
-    /// Whether this key-up is the release of a key-down the tap ate, clearing the memory.
+    /// Whether this key-up is the release of a key-down the tap ate, clearing only that key.
     ///
     /// Key code only: the modifiers can differ between the two events, and a physical key
     /// cannot be pressed twice without being released in between, so the code is enough.
     private func takeSwallowedKeyDown(_ keyCode: UInt16) -> Bool {
-        withLock {
-            guard swallowedKeyDownCode == keyCode else { return false }
-            swallowedKeyDownCode = nil
-            return true
-        }
+        withLock { swallowedKeyPresses.take(keyCode) }
     }
 
     /// The plain half of the decision — hotkeys, navigation keys, Escape. The answer lives

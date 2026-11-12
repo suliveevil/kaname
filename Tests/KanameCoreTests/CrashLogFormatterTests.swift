@@ -4,7 +4,7 @@ import XCTest
 // 崩溃报告的形状是给「下一次启动」读的，也是给用户附在问题反馈里的，
 // 因此字段与 fragment 的解析格式都要钉住。
 
-final class CrashLogFormatterTests: XCTestCase {
+nonisolated final class CrashLogFormatterTests: XCTestCase {
     private func context(kind: String = "nsexception") -> CrashContext {
         CrashContext(
             kind: kind,

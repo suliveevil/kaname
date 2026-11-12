@@ -5,7 +5,7 @@ import XCTest
 /// snapshot. The rules are verbatim from the old `ShortcutEngine.shouldSwallowComposed`;
 /// what the tests add is the contract with the snapshot: everything the decision reads is
 /// in `ComposedSwallowState`, and nothing reaches for the engine or the main actor.
-final class ComposedSwallowTests: XCTestCase {
+nonisolated final class ComposedSwallowTests: XCTestCase {
     private let c = KeyToken("c")
     private let k = KeyToken("k")
 

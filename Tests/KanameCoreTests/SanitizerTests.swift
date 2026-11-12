@@ -4,7 +4,7 @@ import XCTest
 // 本文件钉住「写入磁盘之前一定脱敏」这条契约。脱敏规则的取舍是保守的：误伤只损失一点
 // 调试信息，漏放则可能把用户的令牌写进一个准备发出去的文件里。
 
-final class SanitizerTests: XCTestCase {
+nonisolated final class SanitizerTests: XCTestCase {
     func testRedactsSensitiveURLQueryValues() {
         let line = "GET https://api.example.com/v1/search?q=secret&token=abc123"
         let result = Sanitizer.redact(line)
@@ -111,7 +111,7 @@ final class SanitizerTests: XCTestCase {
 /// expression. A typo used to be fatal in the worst possible place — `try!` inside the logger,
 /// which took the app down on its first log line — so the compile step is now tolerant and this
 /// test is what makes the invariant true instead of asserted.
-final class SanitizerRuleCompilationTests: XCTestCase {
+nonisolated final class SanitizerRuleCompilationTests: XCTestCase {
     func testEveryRuleCompiles() {
         // Touching `redact` forces the table to compile.
         _ = Sanitizer.redact("warm-up")

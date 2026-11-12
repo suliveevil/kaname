@@ -2,7 +2,7 @@ import XCTest
 @testable import KanameCore
 
 /// The derived double-tap window, and the schema change that removed the stored one.
-final class DoubleTapTimingTests: XCTestCase {
+nonisolated final class DoubleTapTimingTests: XCTestCase {
     /// A system value inside the range is used as-is.
     func testSystemValueInsideTheRangePassesThrough() {
         XCTAssertEqual(DoubleTapTiming.window(systemDoubleClickInterval: 0.4), 0.4)

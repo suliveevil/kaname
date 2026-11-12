@@ -181,22 +181,52 @@ final class EngineState {
     /// not inherit anyone's cancellation, so without this handle there is no way to stop it
     /// between its activation wait and the key it would post.
     var injectionTask: Task<InjectionOutcome, Never>?
+    private var injectionOwnership = SessionOwnership()
+    private var surfaceOwnership = SessionOwnership()
+
+    /// The token shared by asynchronous work belonging to the visible panel or palette.
+    var surfaceSessionToken: SessionToken { surfaceOwnership.current }
+
+    /// Starts a new panel/palette session and revokes the previous session's delayed work.
+    /// A replay queued by the old surface must not fire into the new one, and a scoped-search
+    /// activation from the old surface must not press a row after the user has moved on.
+    @discardableResult
+    func beginSurfaceSession() -> SessionToken {
+        cancelInjection()
+        searchRunTask?.cancel()
+        searchRunTask = nil
+        return surfaceOwnership.begin()
+    }
+
+    /// Cancels the current replay and invalidates its continuation. A newer replay or surface
+    /// owns the next outcome; an older caller must not publish a HUD or usage after that.
+    func cancelInjection() {
+        injectionOwnership.begin()
+        injectionTask?.cancel()
+        injectionTask = nil
+    }
 
     /// Queues a replay, replacing whatever was queued before.
     ///
     /// Every replay goes through here — a system-hotkey row, a panel row's fallback, the
     /// palette's fallback — so "one pending replay at a time" and the cancellation rule
-    /// live in one place. The returned task carries the verdict for the callers that
-    /// report a failure; the registration is what lets `stop()` cancel the post.
+    /// live in one place. The target is mandatory and captured by the caller before any
+    /// asynchronous element walk. The returned task carries the verdict for callers that
+    /// report a failure; a superseded task reports `.cancelled` even if it finished late.
     @discardableResult
     func enqueueInjection(
         _ chord: KeyChord,
-        to target: InjectionTarget? = nil,
+        to target: InjectionTarget,
         delay: TimeInterval = 0.12
     ) -> Task<InjectionOutcome, Never> {
+        let token = injectionOwnership.begin()
         injectionTask?.cancel()
-        let task = Task { @MainActor in
-            await ShortcutInjector.post(chord, to: target, delay: delay)
+        let task = Task { @MainActor [weak self] in
+            let outcome = await ShortcutInjector.post(chord, to: target, delay: delay)
+            guard let self, self.injectionOwnership.owns(token) else {
+                return InjectionOutcome.cancelled
+            }
+            return outcome
         }
         injectionTask = task
         return task

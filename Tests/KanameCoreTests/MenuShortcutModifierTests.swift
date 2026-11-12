@@ -4,7 +4,7 @@ import XCTest
 /// Fixtures are measured, not guessed: each raw value below was read from the running
 /// Safari's menu bar through `AXMenuItemCmdModifiers` on 2026-11-04 (macOS 26), together
 /// with what Safari renders for the same item.
-final class MenuShortcutModifierTests: XCTestCase {
+nonisolated final class MenuShortcutModifierTests: XCTestCase {
     func testCommandIsImpliedWithoutTheNoCommandBit() {
         let decoded = MenuShortcutModifiers.decode(rawValue: 0) // 新建窗口, ⌘N
         XCTAssertEqual(decoded.modifiers, [.command])

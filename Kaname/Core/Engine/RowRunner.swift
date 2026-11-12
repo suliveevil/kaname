@@ -214,26 +214,37 @@ final class RowRunner {
         rowID: String,
         element: AXUIElement?,
         origin: Origin,
+        target: InjectionTarget?,
         searchTarget: NSRunningApplication? = nil
     ) async {
         guard !refusesExecution(item) else { return }
+        let session = state.surfaceSessionToken
         let rendered = KeyFormatter.render(item.chord, style: state.settings.keyStyle)
-        if let element, await MenuTrigger.press(ResolvedAXElement(element: element)) {
-            switch origin {
-            case .panel:
-                Diag.action("panel.run", target: item.appBundleID ?? frontmostBundleID())
-                Diag.debug(.run, "pressed menu item row=\(rowID) titleLen=\(item.title.count)")
-                showExecutedNotice(
-                    chord: item.chord.isEmpty ? KeyFormatter.noShortcutPlaceholder : rendered,
-                    title: item.title
-                )
-            case .search:
-                Diag.info(.run, "pressed menu item from search row=\(rowID) titleLen=\(item.title.count)")
-                Diag.action("search.run", target: item.appBundleID ?? frontmostBundleID())
-                DispatchQueue.main.async { searchTarget?.activate() }
-                usageStore.record(usageKey: item.usageKey)
+        if let element {
+            let pressed = await MenuTrigger.press(ResolvedAXElement(element: element))
+            // The AX press may have yielded to a new panel/palette session. Its outcome and
+            // focus hand-off belong to the session that started it, not the one now visible.
+            guard state.surfaceSessionToken == session else { return }
+            if pressed {
+                switch origin {
+                case .panel:
+                    Diag.action("panel.run", target: item.appBundleID ?? frontmostBundleID())
+                    Diag.debug(.run, "pressed menu item row=\(rowID) titleLen=\(item.title.count)")
+                    showExecutedNotice(
+                        chord: item.chord.isEmpty ? KeyFormatter.noShortcutPlaceholder : rendered,
+                        title: item.title
+                    )
+                case .search:
+                    Diag.info(.run, "pressed menu item from search row=\(rowID) titleLen=\(item.title.count)")
+                    Diag.action("search.run", target: item.appBundleID ?? frontmostBundleID())
+                    DispatchQueue.main.async { [weak state] in
+                        guard let state, state.surfaceSessionToken == session else { return }
+                        searchTarget?.activate()
+                    }
+                    usageStore.record(usageKey: item.usageKey)
+                }
+                return
             }
-            return
         }
         guard !item.chord.isEmpty else {
             // No shortcut to replay either: the row is unreachable until the next scan.
@@ -260,6 +271,13 @@ final class RowRunner {
             )
             return
         }
+        guard state.surfaceSessionToken == session else { return }
+        // No caller may silently fall back to whichever app is frontmost now. The target was
+        // captured before the element walk; if that process could not be named, fail the run.
+        guard let target else {
+            reportInjectionFailure(.targetMissing)
+            return
+        }
         switch origin {
         case .panel:
             Diag.debug(.run, """
@@ -269,7 +287,6 @@ final class RowRunner {
             Diag.action("panel.run.replay", target: item.appBundleID ?? frontmostBundleID())
             // The toast is the confirmation of a run, so it waits for the replay to actually
             // post: a chord withheld because the app never came back is a failure, not a run.
-            let target = injectionTargetForFrontmost()
             let outcome = await state.enqueueInjection(item.chord, to: target, delay: 0.12).value
             if outcome == .sent {
                 showExecutedNotice(chord: rendered, title: item.title)
@@ -279,30 +296,36 @@ final class RowRunner {
         case .search:
             Diag.debug(.run, "search replay \(KeyFormatter.render(item.chord, style: .symbols)) row=\(rowID) titleLen=\(item.title.count)")
             Diag.action("search.run.replay", target: item.appBundleID ?? frontmostBundleID())
-            // The injector brings the previous app back and verifies it, instead of typing
+            // The injector brings the captured app back and verifies it, instead of typing
             // into whatever holds the keyboard once the palette closes.
-            let injectionTarget = searchTarget.map { injectionTarget(for: $0) }
-            let outcome = await state.enqueueInjection(item.chord, to: injectionTarget, delay: 0.18).value
-            if outcome != .sent {
+            let outcome = await state.enqueueInjection(item.chord, to: target, delay: 0.18).value
+            if outcome == .sent {
+                usageStore.record(usageKey: item.usageKey)
+            } else {
                 reportInjectionFailure(outcome)
             }
-            usageStore.record(usageKey: item.usageKey)
         }
     }
 
-    /// A system hotkey has no element to press: replay the chord into the front app.
+    /// A system hotkey has no element to press: capture the front app before closing the
+    /// panel, then use the same activation and ownership checks as every other replay.
     func runSystemHotkey(_ system: BindingItem) {
         guard !refusesExecution(system) else { return }
+        let target = injectionTargetForFrontmost()
         usageStore.record(usageKey: system.usageKey)
         dismissPanel()
-        Diag.info(.inject, "replaying system hotkey into the front app")
+        guard let target else {
+            reportInjectionFailure(.targetMissing)
+            return
+        }
+        Diag.info(.inject, "replaying system hotkey into the captured front app")
         showExecutedNotice(
             chord: KeyFormatter.render(system.chord, style: state.settings.keyStyle),
             title: system.title
         )
         // One pending replay at a time: a second hotkey pressed before the first one has
         // posted would otherwise leave two chords racing into the same app.
-        state.enqueueInjection(system.chord)
+        state.enqueueInjection(system.chord, to: target)
     }
 
     /// The panel has to show the toast too: the setting promises a confirmation and a run
@@ -310,10 +333,6 @@ final class RowRunner {
     private func showExecutedNotice(chord: String, title: String) {
         guard state.settings.showExecutedHUD else { return }
         presenters.notices.show(chord: chord, title: title)
-    }
-
-    private func injectionTarget(for app: NSRunningApplication) -> InjectionTarget {
-        InjectionTarget(processID: app.processIdentifier, bundleID: app.bundleIdentifier)
     }
 
     /// A replay that never posted a key has to say so: the success toast is the opposite

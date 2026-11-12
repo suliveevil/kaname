@@ -4,7 +4,7 @@ import XCTest
 /// 磁盘缓存把整行 BindingItem（含 KeyChord 的 steps/alternates）编成 JSON 存盘。
 /// Chord 的 Codable 合成若丢字段，恢复出来的行就会显示错误的快捷键——而缓存命中时
 /// 没有任何扫描能纠正它。钉住往返保真。
-final class MenuCacheRoundTripTests: XCTestCase {
+nonisolated final class MenuCacheRoundTripTests: XCTestCase {
     func testBindingItemSurvivesJSONRoundTrip() {
         let items = [
             BindingItem(

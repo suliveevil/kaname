@@ -1,7 +1,7 @@
 import XCTest
 @testable import KanameCore
 
-final class PanelBudgetTests: XCTestCase {
+nonisolated final class PanelBudgetTests: XCTestCase {
     func testEmptyListDoesNotReserveAPage() {
         XCTAssertEqual(PanelBudget.budget(totalRows: 0, pageSize: 24, headings: 2), .init(rows: 0, headings: 0))
     }

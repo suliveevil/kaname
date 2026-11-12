@@ -4,7 +4,7 @@ import XCTest
 // 「最近操作」只有 30 条，环形覆盖的语义必须钉死：崩溃报告里最旧的一条被挤掉，
 // 留下的永远是最新的 30 条且保持时间顺序。
 
-final class RingBufferTests: XCTestCase {
+nonisolated final class RingBufferTests: XCTestCase {
     func testKeepsInsertionOrderUnderCapacity() {
         let buffer = RingBuffer<Int>(capacity: 3)
         buffer.append(1)

@@ -42,7 +42,7 @@ App 自身的激活不再被读成前台 App 的输入。检查更新仍是唯�
 Kaname/
 ├── App/
 │   ├── AppDelegate.swift          # lifecycle, single instance, diagnostics, login item, main menu
-│   └── Main.swift                 # AppKit entry point (no SwiftUI App/scene, so no window at launch)
+│   └── Main.swift                 # AppKit entry point (no SwiftUI App/scene creating a launch window)
 ├── Core/
 │   ├── Pure/                      # SwiftPM target KanameCore (Foundation only)
 │   │   ├── KeyChord.swift         # keys, modifiers, normalization, parsing
@@ -111,6 +111,8 @@ Kaname/
 │   │   ├── InputMailbox.swift     # bounded (32) hand-over from the tap thread to the main actor
 │   │   ├── KeySwallowRules.swift  # one value, three channels: identifiers, key codes, characters
 │   │   ├── TapHealth.swift        # backoff for a tap the system keeps disabling
+│   │   ├── InjectionPlan.swift    # complete chord preflight, including alternate key spellings
+│   │   ├── SessionOwnership.swift # opaque tokens for the newest surface/injection session
 │   │   ├── InjectionTargetPolicy.swift # which process a replayed chord is posted to
 │   │   ├── CatalogQuery.swift     # when a query spells a combo instead of text
 │   │   └── BuiltInCatalog.swift   # 100 fallback shortcuts
@@ -128,7 +130,7 @@ Kaname/
 │   ├── Input/
 │   │   ├── KeyboardMonitor.swift  # global CGEventTap, swallow rules, lazy decoding
 │   │   ├── ModifierFlags.swift    # NSEvent.ModifierFlags → ModifierSet
-│   │   ├── ShortcutInjector.swift # replays one chord into the front app
+│   │   ├── ShortcutInjector.swift # preflights and replays one chord to a captured target
 │   │   └── ShortcutTester.swift   # head/tail listen-only taps for "test this combo"
 │   ├── Storage/
 │   │   ├── DataDirectory.swift    # Application Support folder + JsonFileStore
@@ -312,7 +314,7 @@ AXMenuBar
 - 辅助功能权限未授予，或
 - 扫描失败或超时。
 
-目录可在设置里关闭。目录条目标为 `builtIn` 且没有 AX 目标，所以它们从不被执行，从搜索或面板里都不执行；只能复制。
+目录可在设置里关闭。目录条目标为 `builtIn` 且没有 AX 目标，所以普通行执行会直接回放组合键；受管动作清单里的条目仍然只能复制。
 当实时菜单项与目录条目占用同一组合键时，两者仍会一起被报告。
 
 ## 数据模型与索引
@@ -497,7 +499,7 @@ tap 层之上什么都观察不到，所以它退回"是否有 App 到了前台"
 
 禁用菜单项保留它在顺序里的位置——比较器看组合键，不看 `AXEnabled`——它们只是画成灰的，并在**显示不可用菜单项**关闭时整体隐藏。
 
-按住修饰键时，能从它们到达的菜单项彼此之间保持同一顺序，这正是"按下的修饰键越多、收窄后的列表重新排序"的原因。**收藏置顶**开启时收藏浮在所有内容之上。
+修饰键筛选生效时，能从这些 token 到达的菜单项彼此之间保持同一顺序；加入更多筛选 token 后，收窄的列表仍按这条规则重排。**收藏置顶**开启时收藏浮在所有内容之上。
 Shift 提示层（`ShiftHintLayer.labels(for:)`）每次重建都从当前显示的序列重建，所以 `0`–`9` / `a`–`z` 跟随屏幕上的顺序，而不是固定绑在某个菜单项上。
 菜单路径随菜单项一起走，形式是标题与组合键之间的一条小备注而不是分区标题，这也是排序再也不能把 ⌘ 块切成两半的原因。
 
@@ -509,14 +511,15 @@ Shift 提示层（`ShiftHintLayer.labels(for:)`）每次重建都从当前显示
 
 ## 触发管线
 
-`KeyboardMonitor` 在辅助功能授权下装一个全局事件 tap。它观察 `flagsChanged` 与 `keyDown`（外加 tap 被禁用的通知），并把事件原样放行，例外是：
+`KeyboardMonitor` 在辅助功能授权下装一个全局事件 tap。它观察 `flagsChanged`、`keyDown`、`keyUp`、左键／右键／其他鼠标键的按下与松开，以及 tap 被禁用的通知。事件原样放行，例外是：
 
 - 三个录制热键（面板、搜索、切换）被消费掉，前台 App 收不到——走的是激活所用的同一条 `HotkeyMatcher` 规则，包含 Hyper 超集宽容；
 - 面板活动期间，它的导航键（↑/↓/←/→、⌃F/⌃B/⌃N/⌃P）、每个启用分页对的字符（`,`/`.`、`[`/`]`、`-`/`=`、`;`/`'`）、
   两个动作键被录制到什么（含小键盘 Enter 别名）、Esc 以及一个裸 `/` 都会通过 `updateCapturedKeys` 被捕获。捕获 `/` 是为了让背后的 App 也看不到它——
   在浏览器里那个键是*快速查找*，否则它会在 Kaname 刚打开的面板之上再开一层；
 - **完成**一个快捷键的键不被吞掉：面板关闭，事件继续到前台 App。
-- 被捕获键的重复也被吞掉。放行会让面板选区移动、同时让前台 App 滚动；引擎另外会为不该二次触发的动作忽略重复。
+- 被捕获键的重复也被吞掉。放行会让面板选区移动、同时让前台 App 滚动；引擎另外会为不该二次触发的动作忽略重复。`SwallowedKeyPresses` 按物理键码独立跟踪：捕获规则消失后，原按键的自动重复仍被吞到对应 key-up；一个键松开不会清除另一个键的吞键状态。
+- 在可见界面外点击鼠标左键或右键会关闭它。如果点击位于前台 App 的窗口内，这次按下与对应松开会被吞掉；其他点击照常传递。
 
 字符是惰性解码的：`KeyboardMonitor` 只在某个界面正在接收按键、或在录制绑定时才读 Unicode 字符串（`updateDecodesKeyEvents`），
 因为 tap 看到会话里的每一次按键。面板活动期间，`ShortcutEngine` 还会用 `updateCapturedCharacters` 发布启用的分页字符，
@@ -534,7 +537,7 @@ run-loop 源挂在**带自己 run loop 的专用线程**上，所以卡死的主
 | --- | --- | --- | --- |
 | `idle` | 什么都没显示 | 关闭、松开的按住、Esc | 按住延迟、触发键双击、某个热键 |
 | `armed` | 正在计时一次按住；面板还不可见 | 触发键被松开，或另一个键被按下 | 延迟走完（→ `active`） |
-| `active` | 面板可见，在所属 App 内持久 | `activatePanel()` | 完成的快捷键（高亮约 0.4 秒后）、Esc、再按一次面板热键、所属 App 失焦、切换前台 App 或 Space |
+| `active` | 面板可见，在所属 App 内持久 | `activatePanel()` | 完成的快捷键（高亮约 0.4 秒后）、Esc、再按一次面板热键、点击面板外部、所属 App 失焦、切换前台 App 或 Space |
 
 | 触发器 | 检测方式 |
 | --- | --- |
@@ -556,7 +559,7 @@ run-loop 源挂在**带自己 run loop 的专用线程**上，所以卡死的主
   标题栏的 ⌃ ⌥ ⇧ ⌘ 芯片仍是独立的粘性集合（`panel.latchedModifiers`）：筛选为空时，一次勾选通过纯修饰键前缀收窄；一旦筛选非空，收窄就归筛选管。
   勾选会一直留到被取消勾选或面板被关闭。
 - 按下一个非修饰键会取消待定的按住；在 `active` 里，这个键被交给完成/组合键解析器。
-- **松开修饰键不会关闭面板。** 没有空闲计时器，也没有自动隐藏任务；面板由 Esc、面板/切换热键、或一个完成的快捷键关闭。持久只针对打开它的那个 App：该 App **失去焦点**时面板关闭，切换前台 App 或活动 Space 同样关闭，因为面板内容属于那个 App 的菜单栏。
+- **松开修饰键不会关闭面板。** 没有空闲计时器，也没有自动隐藏任务；面板由 Esc、面板/切换热键、点击面板外部、或一个完成的快捷键关闭。持久只针对打开它的那个 App：该 App **失去焦点**时面板关闭，切换前台 App 或活动 Space 同样关闭，因为面板内容属于那个 App 的菜单栏。
   `FocusDismissPolicy` 用 `activatePanel()` 记下的 pid 与**实时**菜单栏属主比对（不看迟到的通知），失焦／激活／Space 三个观察者共用一个 `dismissOnFocusChange()` 出口（每次切换只关一次）与 `FocusRescanGate`（每次切换只重扫一次、取最强参数）。触发键路径另跑 `healStalePanelOwner()`：万一某次切换没送达任何通知，第一次按键就关掉残留会话并打开新面板，不会先把旧面板切换掉。
 - 显示任何东西之前都会检查安全输入；若它在活动，面板隐藏、触发器被忽略。
 - **面板与搜索互斥。** `showSearch()` 会先关闭面板，而 `activatePanel()`（经面板热键）不允许叠在搜索之上；切换热键编码了这条规则：
@@ -582,7 +585,7 @@ run-loop 源挂在**带自己 run loop 的专用线程**上，所以卡死的主
 - **`FavoritesPolicy` 汇总三个收藏布尔。** 星标开关（`showsFavoritesOnly`）与两个设置（`pinFavoritesToTop`、`favoritesCanBeFiltered`）过去被分别传给每次重建，
   并在两个缓存键（`OrderedHitsKey`、`RowBudgetKey`）里重复；现在一个缓存键持有一个 `FavoritesPolicy` 值，所以三者任一变化会同时让顺序与预算失效。
 - **`SearchSnapshot` 是搜索面板的状态。** `comboAnswer`、`searchQuery`/`searchResults`/`searchSelection` 三件套、`isSearchVisible` 与三个范围发布器
-  合成一个被观察的 `search` 快照；范围图标留在引擎侧，因为它是个 `NSImage`。只有 `query` 变化才重跑搜索——`refreshSearch()` 把结果/选中/可见性写回快照而不会打转。
+  合成一个被观察的 `search` 快照；范围图标留在引擎侧，因为它是个 `NSImage`。`query` 变化通过快照的 `didSet` 重跑搜索；目录、范围、系统热键与外部绑定更新则显式调用 `refreshSearch()`。把结果/选中/可见性写回快照不会打转。
 - **`EnginePhase` 取代引擎私有的 `Phase` 枚举**，好让纯路由器不必导入引擎就能读面板阶段。
 
 ### 引擎/状态切分：`EngineState` 作为状态容器（开发，P0-2）
@@ -665,7 +668,7 @@ P1-3 用与引擎切分同样的方式把它拆开：
   检查更新与跨 App 冲突扫描同样是可以取消的 `Task`，结果发布回主 actor。
 - `PanelState` 与搜索快照只在主线程上变更，且 `PanelState` 仍是整体替换的不可变快照——引擎从不原地改它。
 - 让行高亮在完成的快捷键之后继续保持可见的那个 `completionTask` 会在关闭时取消，所以高亮不会活得比展示它的那个面板更久。
-- 关闭界面后的组合键回放走同一个可取消句柄：`EngineState.enqueueInjection` 登记 `injectionTask`（系统热键行、面板行与搜索面的回放回退都经它），`stop()` 与下一次回放都会取消它。搜索面那次「等目标 App 到前台、再解析并按压」的交接另持有 `searchRunTask`，在搜索面关闭、为权限窗或设置关界面（`dismissEverything`）以及 `stop()` 时取消。注入器把取消当作「什么都没发」，所以停掉的交接既不报失败也不弹成功提示。
+- 面板与搜索行在异步 AX 解析之前捕获 `InjectionTarget`，所以走位期间切换 App 不会把原行改投给新前台。`InjectionPlan` 在激活 App 或投递第一个事件之前解析所有非修饰键步骤，必要时依次尝试 `KeyStep.alternates`；空组合键或任何一步无法映射都会让整个计划不投递。`EngineState.enqueueInjection` 同时登记 `injectionTask` 与注入 `SessionOwnership` token。下一次回放、新界面会话或 `stop()` 会取消旧任务并让旧 continuation 失效。搜索面的激活／AX 交接与行完成也检查界面会话所有权。光标恢复另有独立会话 token，面板 ↔ 搜索切换时保留，同时拒绝过期的延迟恢复。取消按「什么都没发」报告，因此既不报失败也不弹成功提示。
 - `KeyboardMonitor` 的共享状态（`tap`/`source`/`isRunning` 等）只在 `withLock` 内读写，`start()` 的发布也在锁内，与 tap 线程和看门狗队列的锁内读取一致——这是该类 `@unchecked Sendable` 契约赖以成立的前提。
 
 ## 面板内容与高亮
@@ -752,13 +755,13 @@ empty prefix (hotkey summon)   ⌘ pressed while open       chord prefix ⌘K
 1. `flagsChanged` → 这一沿按下的每个修饰键向 `panel.filter` 追加一个词元（孤立的 ⇧ 与触发键除外）；松开不改任何东西。`panel.heldModifiers` 跟随 `filter.modifiers`，
    非空筛选清掉 `prefix`，然后 `rebuildPanel()` 运行。
 2. `rebuildPanel()` 排序与分页（`PanelOrdering`，钉住时收藏在前）；非空筛选随后只保留 `SearchCorpus.search` 对 `PanelFilter.query` 返回的 id。
-   `highlightedIDs(for:)` 标出参与中的菜单项：在组合键前缀下是 `PrefixResolver` 从它到达的每个菜单项，而只按住修饰键时是首段修饰键集合为它们**超集**的每个菜单项。
-   当是筛选移走了其他行，那些仍保留、且带按住修饰键的行会点亮它，所以信息既在发光里也在键标里。
+   `highlightedIDs(for:)` 标出参与中的菜单项：在组合键前缀下是 `PrefixResolver` 从它到达的每个菜单项，而只有修饰键筛选 token 时是首段修饰键集合为它们**超集**的每个菜单项。
+   当是筛选移走了其他行，那些仍保留、且带筛选修饰键的行会点亮它，所以信息既在发光里也在键标里。
 3. 精确匹配某个绑定的 `keyDown` 调用 `complete(_:probe:)`：记录用量、确保菜单项所在页、设置 `panel.completedRowID` 并重建，于是菜单项的**描述**用强调色渲染。
 4. 完成任务睡约 0.4 秒（380 ms），然后清掉 `completedRowID` 并关闭面板。键事件没有被消费，所以前台 App 收到这个快捷键。
 5. Esc 或面板/切换热键经 `dismissPanel()` 立即关闭。
 
-**两个不同状态。** `panelSelectionIndex`（↑/↓）是键盘光标，跨重建保持；`isHighlighted` 跟随物理按住的修饰键；`isCompleted` 是那下短暂的强调闪。
+**两个不同状态。** `panelSelectionIndex`（↑/↓）是键盘光标，跨重建保持；`isHighlighted` 跟随筛选或组合键前缀能到达的行；`isCompleted` 是那下短暂的强调闪。
 `OverlayView` 独立渲染选中、键高亮与完成，所以一个选中的菜单项与一个被修饰键匹配的菜单项长得不一样。
 
 **组合键下钻仍然存在**，为多段快捷键服务。按压一个作为某组合键第一步的段会把它压到 `prefix` 上并往下重建一层；面包屑显示前缀。
@@ -856,8 +859,8 @@ Esc 无论有无修饰键都关闭。按下一个没有匹配的键会让面板�
 - 执行一条搜索结果可能立刻触发破坏性动作（删除、清空废纸篓、退出），这就是第一个匹配被选中、但在你按 Return 之前什么都不执行的原因。
 - **面板与搜索互斥。** `showSearch()` 先关闭面板，而切换热键（默认 ⌃⌥⌘S）从搜索到面板、从面板到搜索，或两者都不可见时打开面板。
 
-- **搜索面板的状态是一个快照。** `SearchSnapshot` 把查询、结果、选中、可见性、组合键答案与范围标识作为引擎上的一个 `@Published` 值携带；
-  只有查询变化才重跑搜索，而 `refreshSearch()` 把结果/选中/可见性写回而不会打转。范围图标是唯一留在引擎侧的东西（一个 `NSImage`）。
+- **搜索面板的状态是一个快照。** `SearchSnapshot` 把查询、结果、选中、可见性、组合键答案与范围标识放在 `@Observable` 的 `EngineState.search` 值里；
+  查询变化通过 `didSet` 重跑搜索，目录、范围、系统热键与外部绑定更新则显式调用 `refreshSearch()`。把结果/选中/可见性写回不会打转。范围图标是唯一留在引擎侧的东西（一个 `NSImage`）。
 
 搜索从不记录查询。它在当前内存目录上运行；什么都不持久化。
 
@@ -954,7 +957,7 @@ Esc 无论有无修饰键都关闭。按下一个没有匹配的键会让面板�
   `.popover`、为深色渲染 `.hudWindow`，搜索面板的实色底铺在材质之上，好让文本调校时的对比不随壁纸移动。**降低透明度** 保留实色，**增强对比度** 加强边框与文字，
   两种下键帽都可辨。
 - `HUDPanelController` 渲染那句短的"已执行"提示；可以在设置里关掉。
-- 这个 App 是一个 `LSUIElement` 代理：没有程序坞图标、没有 App 切换器条目、启动时没有窗口。`Main.swift` 把 App 建成纯 AppKit 而不是带场景的 SwiftUI `App`，
+- 这个 App 是一个 `LSUIElement` 代理：默认没有程序坞图标和 App 切换器条目。已经授予辅助功能时，启动不会打开 App 窗口，只显示菜单栏图标；缺少该权限时会自动打开权限向导。`Main.swift` 把 App 建成纯 AppKit 而不是带场景的 SwiftUI `App`，
   因为 `Settings` 场景会在启动时开一个空窗口，而 `MenuBarExtra` 让状态项没法被自己拥有。`showDockIcon` 把激活策略切成 `.regular`，
   然后 `applicationShouldHandleReopen` 打开设置；⌘, 随时打开设置。
 - 界面语言跟随系统，并可在设置里覆盖。`L10n`、`KeyFormatter` 与 `BuiltInCatalog` 提供英文与简体中文字符串；实时菜单标题来自被扫描的 App，已由那个 App 本地化。
@@ -965,11 +968,12 @@ Esc 无论有无修饰键都关闭。按下一个没有匹配的键会让面板�
 
 | 授权 | API | 用于 |
 | --- | --- | --- |
-| 辅助功能 | `AXIsProcessTrustedWithOptions` | 菜单扫描、创建全局事件 tap、`AXPress` 执行 |
+| 辅助功能 | 状态用 `AXIsProcessTrusted`；授权走系统设置与拖拽／手动添加 | 菜单扫描、创建全局事件 tap、`AXPress` 执行 |
 | 输入监控 | `CGPreflightListenEventAccess` / `CGRequestListenEventAccess` | 仅靠辅助功能收不到按键事件时的可选兜底 |
 
 辅助功能是必需的。输入监控是兜底，不是第二道强制闸门：Kaname 单独检查它，并且只在键 tap 收不到事件时才指向它。缺辅助功能会留下兜底目录并禁用触发；
-缺输入监控只在那些会门控按键投递的系统上才要紧。权限标签页的**请求访问**调系统提示、然后打开对应面板，该标签页还把这个 App 暴露成拖拽源，好把它拖进系统设置列表。
+缺输入监控只在那些会门控按键投递的系统上才要紧。辅助功能的**请求访问**刻意不调用 `AXIsProcessTrustedWithOptions(prompt:)`，因为那个提示只注册 App 而不启用它；
+Kaname 会打开系统设置，并引导用户把 App 图标拖进列表或用 **+** 添加。输入监控调用 `CGRequestListenEventAccess()` 并打开对应面板。
 两个深链都用系统设置（macOS 13+）的锚点，并且只在一处写清，在 `PermissionCenter` 里。
 
 状态用三种方式观察：对每个未授予的权限做 3 秒轮询（一旦授予就停）、一个 `DistributedNotificationCenter` 观察者盯着未公开的 `com.apple.accessibility.api` 通知
@@ -1012,10 +1016,11 @@ v2.1.0 加了 `panelPlacement`（默认 `.coverWindow`）、`fixedPanelWidth`（
 并**移除了 `autoHideDelay`**。v2.2.0 加了两个录制的动作键（`runRowKey`、`copyRowKey`）、`excludedBundleIDs`、`ignoredCommands`、`showAppleMenu`、`showDockIcon`
 与诊断开关，并移除了 `allowPanelExecute` 和 `allowSearchExecute`（它们早已不再控制任何东西），以及 `keepBrowserOpenAfterRun` 与 `contextFirst` 排序模式
 （浏览器窗口与那个冗余模式一走，它们就失去了主语）。**面板顺序**（`panelOrder`）是在那之后加的：v5 文件没有这个键，所以 `decodeIfPresent` 给出默认**按修饰键**，不必重写。
-设置 schema 现在是版本 10：v6 加了 `panelOrder`，v7 移除了 `doubleTapWindow`（窗口跟随系统双击速度，所以旧值被忽略并在下一次保存时丢掉），
+设置 schema 现在是版本 12：v6 加了 `panelOrder`，v7 移除了 `doubleTapWindow`（窗口跟随系统双击速度，所以旧值被忽略并在下一次保存时丢掉），
 v8 加了 `pagingPairs`（v7 文件得到默认 `;` / `'` 对，集合里未知的成员被丢弃而不是重置整个文件），v9 加了 `showConfigToolsInPanel`
 （更早的文件被钉到新默认 `false`，因为旧的无条件卡片从来不是一个选择），v10 加了 `usageSortField` 并移除 `sortMode`
-（旧文件没有这个键，所以默认的**快捷键**顺序生效，被移除的键在下一次保存时丢掉）。
+（旧文件没有这个键，所以默认的**快捷键**顺序生效，被移除的键在下一次保存时丢掉），v11 加了 `karabinerPanelSignalEnabled`（默认 `true`），
+v12 加了 `autoAuditUnreachableShortcuts`（默认 `true`）。旧文件缺少这些键时直接采用默认值。
 
 **移除一个键不需要迁移步骤。** `AppSettingsSnapshot` 只实现 `init(from:)`，那里每个字段都是带默认值兜底的 `decodeIfPresent`，
 所以旧载荷能解码，未知键被 `CodingKeys` 忽略，下一次保存把它丢掉。`SettingsPayload`/`SettingsMigrator` 的存在是为了让*版本*被读而不只是被写：
@@ -1040,7 +1045,7 @@ UsageStatistics
 
 ## 测试与 CI
 
-`Package.swift` 声明 `KanameCore`（路径 `Kaname/Core/Pure`）与 `KanameCoreTests`（路径 `Tests/KanameCoreTests`）。XCTest 套件覆盖：
+`Package.swift` 声明 `KanameCore`（路径 `Kaname/Core/Pure`）与 `KanameCoreTests`（路径 `Tests/KanameCoreTests`）。XCTest 宿主类显式标为 `nonisolated`，与 App target 的 MainActor 默认隔离对齐，同时不依赖 Swift 6.2 的 `.defaultIsolation` 包 API；manifest 保持 Swift-tools 6.0，因此 macOS 15 / Swift 6.1 的 CI 分支仍能构建。XCTest 套件覆盖：
 
 - 组合键解析与标准化
 - 键映射与特殊键
@@ -1070,7 +1075,9 @@ UsageStatistics
 - `PanelOrdering`：段数少的在前，然后按重要性顺序（⌘、⌥、⌃、⇧）逐位比较修饰键集合，所以先耗尽的集合在前、`⌃⌥C` 留在 `⌃C` 旁边；然后比键。筛选规则是"携带每一个被筛选的修饰键"
 - `PanelFilter` / `PanelFilterPlan`：按下沿只追加一次修饰键、松开不改任何东西、第三次按下成为尾部、⌫ 一次一个词元地弹尾部、Shift 与触发键永不成为词元、多余的 ⌘ 不被踩、匹配走 `SearchCorpus`（⌃ 然后 f 只找到 ⌃F 快捷键）
 - `PanelSortOrder`：**按修饰键**与旧顺序完全一致；**按菜单分组**让每个顶层菜单在菜单栏顺序里连续、菜单内保持快捷键顺序、未排名分组排在已排名之后且空组最后；切换顺序会把 `0`–`9` / `a`–`z` 的 Shift 标签移到新位置
-- 设置 schema 写版本 8；缺 `pagingPairs` 的 v7 载荷迁移到默认 `;` / `'` 对，集合里未知的成员被丢弃而不是回滚整个文件，缺 `panelOrder` 的 v5 载荷迁移到**按修饰键**
+- 设置 schema 写版本 12；旧载荷保留已经测试的迁移，缺少 v11/v12 键时，`karabinerPanelSignalEnabled` 与 `autoAuditUnreachableShortcuts` 都解码为默认 `true`
+- `InjectionPlan`：主键名优先，备选名按顺序尝试，空计划或部分无法映射的计划在投递前整体拒绝，步骤顺序与修饰键保持不变；`SessionOwnership` 只接受最新 token，旧 token 永不恢复所有权
+- `SwallowedKeyPresses`：重叠的物理按键彼此独立，自动重复一直归属到原键 key-up，不相关键的松开不会清除状态
 - `PanelSelection`：零行什么都不选、一行选它、陈旧索引被丢弃而不是钳到最后一行
 - `RowLayout`：备注列在 300 pt 以下消失、键列两个方向都有上限、60 pt 的标题下限只在最窄支持的行走廊内启用
 - `KeyChord.isFinalStroke`："这一段是最后一段"的唯一真相来源，下钻与菜单项激活共用
@@ -1139,12 +1146,12 @@ Xcode 构建系统根本跑不起来的主机准备的兜底构建，因为它�
 - **只有菜单栏。** 直接实现在自定义视图、工具栏或游戏里的快捷键不可见；只有带快捷键的菜单项出现。兜底目录覆盖常见系统动作，不是每个 App 的私有 UI。
 - **懒建菜单的 App** 在它们的菜单栏被打开过一次之前，可能显示不完整的结果。
 - **安全输入** 按设计压制按键事件；面板隐藏。
-- **面板没有空闲计时器。** 它留到 Esc 或面板/切换热键为止。这是刻意的，但留在屏幕上的面板就一直留在那儿。
+- **面板没有空闲计时器。** 它留到完成快捷键、按 Esc、按面板/切换热键、点击外部或所属 App 失焦为止。单纯经过时间不会关闭它。
 - **覆盖窗口的几何是一个快照。** 覆盖尺寸在面板打开时按前台窗口的边框算出；之后再改变窗口尺寸不会重新摆放面板，直到它被重新打开。
 - **Hyper 匹配按设计是宽容的。** 带三个及以上修饰键的热键也会匹配携带多余修饰键的事件，所以某个不相关的 App 加一个修饰键仍能触发它。少于三个修饰键的热键是精确匹配。
 - **冲突只是信息。** macOS 挑赢家。系统快捷键列表是只读的：Kaname 不能绑定、修改或禁用聚焦搜索、调度中心或任何其他系统热键。
 - **跨 App 范围是一个快照。** 搜索面板显示所选 App 那一刻的菜单扫描；20 秒缓存与懒建菜单仍然生效，而面板永不从前台 App 切走。
-- **面板执行需要实时菜单项。** 兜底目录条目复制而不是执行，禁用的菜单项根本不执行。
+- **不是每一行都会执行。** 禁用的菜单项、配置工具行与受管的整机动作永不执行。普通兜底目录行没有 AX 元素，因此通过回放组合键执行。
 - **检查更新是手动的。** 它需要网络，只比较版本，并且打开发布页而不是下载或安装任何东西。
 - **不重映射。** Kaname 报告快捷键，并可以选择性地按压一个菜单项；它不定义自定义绑定。
 - **录在收窄修饰键上的复制键有歧义。** 收窄时按住的修饰键被剥掉，所以旧的默认复制键 ⌘↩ 曾无法与 `⌘` + `↩` 区分，结果回答的是执行。
