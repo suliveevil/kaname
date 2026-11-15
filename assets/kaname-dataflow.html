@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kaname 内部数据流 · 跨泳道交互图</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#FAF9F6;color:#2C2C2A;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",Arial,sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased}
+.wrap{max-width:760px;margin:0 auto;padding:36px 20px 72px}
+header{border-top:3px solid #185FA5;padding-top:22px}
+.eyebrow{font-size:11px;letter-spacing:.16em;color:#5F5E5A;font-weight:600}
+h1{font-size:26px;line-height:1.35;margin:10px 0 12px;letter-spacing:-.01em}
+.lede{font-size:14px;color:#444441;margin:0 0 16px}
+.meta{font-size:12px;color:#5F5E5A;border-left:2px solid #B5D4F4;padding-left:12px;margin:0 0 28px}
+.bridge{background:#EFF6FD;border:1px solid #CDE3F8;border-radius:10px;padding:16px 20px;margin:0 0 28px;font-size:13px}
+.bridge h2,.chart h2,.takeaway h2{font-size:15px;margin:0 0 10px;color:#0C447C}
+.bridge ul{margin:0;padding-left:20px}
+.bridge li{margin:4px 0}
+.chart{background:#FFFFFF;border:1px solid #E3E1D8;border-radius:12px;margin:0 0 24px;padding:20px 20px 12px;box-shadow:0 1px 2px rgba(44,44,42,.04)}
+.chart>p{font-size:13px;color:#5F5E5A;margin:0 0 14px}
+.chart svg{display:block;width:100%;height:auto}
+figcaption{font-size:12px;color:#5F5E5A;border-top:1px solid #EEECE4;margin-top:10px;padding-top:10px}
+.takeaway{background:#F1EFE8;border-radius:10px;padding:16px 20px;font-size:13px;margin:0 0 24px}
+.takeaway h2{color:#2C2C2A}
+.takeaway p{margin:0}
+footer{font-size:12px;color:#5F5E5A;border-top:1px solid #E3E1D8;padding-top:16px}
+footer p{margin:6px 0}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em;background:#F1EFE8;padding:1px 4px;border-radius:3px}
+@media print{body{background:#fff}.chart{break-inside:avoid;box-shadow:none}.wrap{max-width:none;padding:0}}
+@media (max-width:520px){.wrap{padding:20px 12px 48px}h1{font-size:21px}.chart{padding:14px 10px 10px}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<header>
+<div class="eyebrow">KANAME · INTERNAL DATA FLOW</div>
+<h1>Kaname 内部数据流 · 跨泳道交互图</h1>
+<p class="lede">两张图是同一条链的连续两半：前半段是数据如何被采集、建模、缓存；后半段是一个按键事件如何驱动状态机、最终写回磁盘。步骤编号 1–16 连续，不是两条独立流程。</p>
+<p class="meta">依据：KagiPeek 仓库 <code>README.zh-CN.md</code> 与 <code>docs/zh-CN/ARCHITECTURE.md</code> 本机工作副本（未核 git HEAD）；模块分层参考桌面 <code>kaname-diagram.jpg</code>。整理：2026-11-12 · 团子。状态：自检完成 → 待放行。</p>
+</header>
+
+<section class="bridge">
+<h2>怎么读这两张图</h2>
+<ul>
+<li><strong>列＝模块泳道</strong>：外部输入 / Core·适配 / Core·Pure / Engine / UI 界面 / 本地数据。灰＝系统边界，蓝＝Kaname 内部模块。</li>
+<li><strong>自上而下＝处理顺序</strong>，折线箭头＝跨泳道数据传递，两图各 7 次跳转。箭头只走行间留白，不压节点文字。</li>
+<li><strong>衔接点在步 8 → 9</strong>：图一止于「8 目录快照」，此刻数据已就位但尚无事件；图二从「9 按键事件」接续，方向反转为事件驱动状态、再回流适配层与磁盘。</li>
+</ul>
+</section>
+
+<figure class="chart">
+<h2>图一 · 采集与建模（步 1–8）</h2>
+<p>前台切换 → 锁定菜单栏属主 → AX 扫描（0.35s 超时、<code>axPath</code>）→ 标准化建模 → 三源合并（世代守卫）→ 四份索引 → 两级缓存落盘 → <code>CatalogSnapshot</code>。</p>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 604" width="100%" role="img">
+<title>Kaname 内部数据流之一 · 采集与建模</title>
+<desc>六条模块泳道，步 1 到 8：前台切换、锁定属主、AX 扫描、标准化建模、三源合并、四份索引、落盘缓存、目录快照。</desc>
+<style>
+.kLb{font-size:11px;font-weight:500;fill:#2C2C2A;text-anchor:middle;dominant-baseline:central}
+.kTx{font-size:12px;font-weight:500;fill:#444441;text-anchor:middle;dominant-baseline:central}
+.kSx{font-size:11px;font-weight:400;fill:#5F5E5A;text-anchor:middle;dominant-baseline:central}
+.kTk{font-size:12px;font-weight:500;fill:#0C447C;text-anchor:middle;dominant-baseline:central}
+.kSk{font-size:11px;font-weight:400;fill:#185FA5;text-anchor:middle;dominant-baseline:central}
+.kLg{font-size:11px;font-weight:400;fill:#5F5E5A;text-anchor:middle;dominant-baseline:central}
+</style>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<rect x="40" y="40" width="100" height="512" fill="#F1EFE8" fill-opacity="0.35" stroke="#B4B2A9" stroke-width="0.5"/>
+<rect x="140" y="40" width="100" height="512" fill="#E6F1FB" fill-opacity="0.4" stroke="#B5D4F4" stroke-width="0.5"/>
+<rect x="240" y="40" width="100" height="512" fill="#E6F1FB" fill-opacity="0.4" stroke="#B5D4F4" stroke-width="0.5"/>
+<rect x="340" y="40" width="100" height="512" fill="#B5D4F4" fill-opacity="0.35" stroke="#B5D4F4" stroke-width="0.5"/>
+<rect x="440" y="40" width="100" height="512" fill="#E6F1FB" fill-opacity="0.4" stroke="#B5D4F4" stroke-width="0.5"/>
+<rect x="540" y="40" width="100" height="512" fill="#F1EFE8" fill-opacity="0.35" stroke="#B4B2A9" stroke-width="0.5"/>
+<rect x="40" y="40" width="100" height="36" fill="#D3D1C7" fill-opacity="0.8" stroke="#B4B2A9" stroke-width="0.5"/>
+<rect x="140" y="40" width="100" height="36" fill="#B5D4F4" fill-opacity="0.8" stroke="#B5D4F4" stroke-width="0.5"/>
+<rect x="240" y="40" width="100" height="36" fill="#B5D4F4" fill-opacity="0.8" stroke="#B5D4F4" stroke-width="0.5"/>
+<rect x="340" y="40" width="100" height="36" fill="#85B7EB" fill-opacity="0.8" stroke="#B5D4F4" stroke-width="0.5"/>
+<rect x="440" y="40" width="100" height="36" fill="#B5D4F4" fill-opacity="0.8" stroke="#B5D4F4" stroke-width="0.5"/>
+<rect x="540" y="40" width="100" height="36" fill="#D3D1C7" fill-opacity="0.8" stroke="#B4B2A9" stroke-width="0.5"/>
+<text class="kLb" x="90" y="58">外部输入</text><text class="kLb" x="190" y="58">Core/适配</text><text class="kLb" x="290" y="58">Core/Pure</text><text class="kLb" x="390" y="58">Engine</text><text class="kLb" x="490" y="58">UI 界面</text><text class="kLb" x="590" y="58">本地数据</text>
+<g>
+<rect x="46" y="88" width="88" height="44" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/><text class="kTx" x="90" y="103">1 前台切换</text><text class="kSx" x="90" y="117">NSWorkspace</text>
+<rect x="146" y="148" width="88" height="44" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/><text class="kTk" x="190" y="163">2 锁定属主</text><text class="kSk" x="190" y="177">菜单栏归属</text>
+<rect x="146" y="208" width="88" height="44" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/><text class="kTk" x="190" y="223">3 AX 扫描</text><text class="kSk" x="190" y="237">0.35s·axPath</text>
+<rect x="246" y="268" width="88" height="44" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/><text class="kTk" x="290" y="283">4 标准化建模</text><text class="kSk" x="290" y="297">usageKey</text>
+<rect x="346" y="328" width="88" height="44" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/><text class="kTk" x="390" y="343">5 三源合并</text><text class="kSk" x="390" y="357">世代守卫</text>
+<rect x="246" y="388" width="88" height="44" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/><text class="kTk" x="290" y="403">6 四份索引</text><text class="kSk" x="290" y="417">前缀·语料</text>
+<rect x="546" y="448" width="88" height="44" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/><text class="kTx" x="590" y="463">7 落盘缓存</text><text class="kSx" x="590" y="477">20s / 10min</text>
+<rect x="346" y="508" width="88" height="44" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/><text class="kTk" x="390" y="523">8 目录快照</text><text class="kSk" x="390" y="537">命中免扫描</text>
+</g>
+<g stroke="#5F5E5A" stroke-width="0.5" marker-end="url(#arrow)">
+<path fill="none" d="M 90 132 V 140 H 190 V 148"/>
+<path fill="none" d="M 190 192 V 208"/>
+<path fill="none" d="M 190 252 V 260 H 290 V 268"/>
+<path fill="none" d="M 290 312 V 320 H 390 V 328"/>
+<path fill="none" d="M 390 372 V 380 H 290 V 388"/>
+<path fill="none" d="M 290 432 V 440 H 590 V 448"/>
+<path fill="none" d="M 590 492 V 500 H 390 V 508"/>
+</g>
+<rect x="40" y="560" width="600" height="24" fill="#FFFFFF" stroke="#D3D1C7" stroke-width="0.5"/>
+<text class="kLg" x="340" y="572">灰＝边界　蓝＝内部模块　→ 跨泳道数据传递　自上而下＝处理顺序</text>
+</svg>
+<figcaption>关键取舍：<code>BindingItem</code> 是纯值，可进纯逻辑层、可落盘；执行菜单项所需的 <code>AXUIElement</code> 不能序列化，被单独留在 <code>CatalogSnapshot.elements</code>。因此「缓存命中免扫描」不等于「零 AX 调用」。</figcaption>
+</figure>
+
+<figure class="chart">
+<h2>图二 · 事件、决策与落盘（步 9–16）</h2>
+<p>按键事件 → tap 与吞键 → 事件路由／三相状态机 → <code>EngineState</code> 不可变快照 → 组合键解析 → 分区重绘 → 执行（按压优先、注入兜底）→ 原子落盘。</p>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 604" width="100%" role="img">
+<title>Kaname 内部数据流之二 · 事件、决策与落盘</title>
+<desc>六条模块泳道，步 9 到 16：按键事件、监听吞键、事件路由、状态容器、组合解析、分区重绘、执行菜单、原子落盘。</desc>
+<style>
+.kLb{font-size:11px;font-weight:500;fill:#2C2C2A;text-anchor:middle;dominant-baseline:central}
+.kTx{font-size:12px;font-weight:500;fill:#444441;text-anchor:middle;dominant-baseline:central}
+.kSx{font-size:11px;font-weight:400;fill:#5F5E5A;text-anchor:middle;dominant-baseline:central}
+.kTk{font-size:12px;font-weight:500;fill:#0C447C;text-anchor:middle;dominant-baseline:central}
+.kSk{font-size:11px;font-weight:400;fill:#185FA5;text-anchor:middle;dominant-baseline:central}
+.kLg{font-size:11px;font-weight:400;fill:#5F5E5A;text-anchor:middle;dominant-baseline:central}
+</style>
+<defs><marker id="arrowB" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<rect x="40" y="40" width="100" height="512" fill="#F1EFE8" fill-opacity="0.35" stroke="#B4B2A9" stroke-width="0.5"/>
+<rect x="140" y="40" width="100" height="512" fill="#E6F1FB" fill-opacity="0.4" stroke="#B5D4F4" stroke-width="0.5"/>
+<rect x="240" y="40" width="100" height="512" fill="#E6F1FB" fill-opacity="0.4" stroke="#B5D4F4" stroke-width="0.5"/>
+<rect x="340" y="40" width="100" height="512" fill="#B5D4F4" fill-opacity="0.35" stroke="#B5D4F4" stroke-width="0.5"/>
+<rect x="440" y="40" width="100" height="512" fill="#E6F1FB" fill-opacity="0.4" stroke="#B5D4F4" stroke-width="0.5"/>
+<rect x="540" y="40" width="100" height="512" fill="#F1EFE8" fill-opacity="0.35" stroke="#B4B2A9" stroke-width="0.5"/>
+<rect x="40" y="40" width="100" height="36" fill="#D3D1C7" fill-opacity="0.8" stroke="#B4B2A9" stroke-width="0.5"/>
+<rect x="140" y="40" width="100" height="36" fill="#B5D4F4" fill-opacity="0.8" stroke="#B5D4F4" stroke-width="0.5"/>
+<rect x="240" y="40" width="100" height="36" fill="#B5D4F4" fill-opacity="0.8" stroke="#B5D4F4" stroke-width="0.5"/>
+<rect x="340" y="40" width="100" height="36" fill="#85B7EB" fill-opacity="0.8" stroke="#B5D4F4" stroke-width="0.5"/>
+<rect x="440" y="40" width="100" height="36" fill="#B5D4F4" fill-opacity="0.8" stroke="#B5D4F4" stroke-width="0.5"/>
+<rect x="540" y="40" width="100" height="36" fill="#D3D1C7" fill-opacity="0.8" stroke="#B4B2A9" stroke-width="0.5"/>
+<text class="kLb" x="90" y="58">外部输入</text><text class="kLb" x="190" y="58">Core/适配</text><text class="kLb" x="290" y="58">Core/Pure</text><text class="kLb" x="390" y="58">Engine</text><text class="kLb" x="490" y="58">UI 界面</text><text class="kLb" x="590" y="58">本地数据</text>
+<g>
+<rect x="46" y="88" width="88" height="44" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/><text class="kTx" x="90" y="103">9 按键事件</text><text class="kSx" x="90" y="117">CGEvent tap</text>
+<rect x="146" y="148" width="88" height="44" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/><text class="kTk" x="190" y="163">10 监听吞键</text><text class="kSk" x="190" y="177">InputMailbox</text>
+<rect x="346" y="208" width="88" height="44" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/><text class="kTk" x="390" y="223">11 事件路由</text><text class="kSk" x="390" y="237">三相状态机</text>
+<rect x="346" y="268" width="88" height="44" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/><text class="kTk" x="390" y="283">12 状态容器</text><text class="kSk" x="390" y="297">不可变快照</text>
+<rect x="246" y="328" width="88" height="44" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/><text class="kTk" x="290" y="343">13 组合解析</text><text class="kSk" x="290" y="357">前缀收窄</text>
+<rect x="446" y="388" width="88" height="44" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/><text class="kTk" x="490" y="403">14 分区重绘</text><text class="kSk" x="490" y="417">按状态订阅</text>
+<rect x="146" y="448" width="88" height="44" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/><text class="kTk" x="190" y="463">15 执行菜单</text><text class="kSk" x="190" y="477">按压→注入</text>
+<rect x="546" y="508" width="88" height="44" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/><text class="kTx" x="590" y="523">16 原子落盘</text><text class="kSx" x="590" y="537">usage.json</text>
+</g>
+<g stroke="#5F5E5A" stroke-width="0.5" marker-end="url(#arrowB)">
+<path fill="none" d="M 90 132 V 140 H 190 V 148"/>
+<path fill="none" d="M 190 192 V 200 H 390 V 208"/>
+<path fill="none" d="M 390 252 V 268"/>
+<path fill="none" d="M 390 312 V 320 H 290 V 328"/>
+<path fill="none" d="M 290 372 V 380 H 490 V 388"/>
+<path fill="none" d="M 490 432 V 440 H 190 V 448"/>
+<path fill="none" d="M 190 492 V 500 H 590 V 508"/>
+</g>
+<rect x="40" y="560" width="600" height="24" fill="#FFFFFF" stroke="#D3D1C7" stroke-width="0.5"/>
+<text class="kLg" x="340" y="572">灰＝边界　蓝＝内部模块　→ 跨泳道数据传递　自上而下＝处理顺序</text>
+</svg>
+<figcaption>线程边界：吞键决定必须在 tap 线程当场做（读引擎发布的 <code>ComposedSwallowState</code> 快照），而路由与组合解析可慢一跳在主 actor 上完成；中间由最多 32 条事件的 <code>InputMailbox</code> 按批投递，丢弃时补 <code>.interruption</code>。</figcaption>
+</figure>
+
+<section class="takeaway">
+<h2>一句话版</h2>
+<p>Kaname 内部没有「数据库」，只有一条单向流入、四处分叉、两级缓存的管道：三路输入经适配层汇入 → 在 <code>Core/Pure</code> 统一成纯值并一次算出索引 → <code>Engine</code> 持有状态与目录快照 → UI 订阅状态、执行回流适配层 → 只有 <code>settings.json</code> / <code>usage.json</code> 是用户数据，其余全是可再生缓存。</p>
+</section>
+
+<footer>
+<p><strong>范围</strong>：仅主链 16 步。未画：冲突类型判定与双 tap 实时测试、检查更新、<code>conflicts-cache.json</code> / logs / crash 写入、Markdown 导出、设置七页与迁移、Karabiner <code>kaname_panel</code> 变量通知、权限向导、搜索范围切换的重扫路径、缓存读回的反向支路。</p>
+<p><strong>载体</strong>：本页自包含，零外部资源；两块图为本会话已渲染 SVG 原样内联，第二块仅作 <code>marker</code> id 去重（图形内容不变）。可离线双击打开，亦可整页打印。</p>
+<p>记录：2026-11-12 · 执行者：团子 · 状态 待放行 · 依据为本机工作副本（未核 git HEAD）。</p>
+</footer>
+</main>
+</body>
+</html>

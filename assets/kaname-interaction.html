@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kaname 用户 ↔ app 交互流程 · 主链路与旁路</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f6f7f9;color:#1f2328;font:14px/1.7 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+.wrap{max-width:1000px;margin:0 auto;padding:32px 24px 64px}
+h1{font-size:24px;font-weight:600;margin:0 0 6px}
+h2{font-size:17px;font-weight:600;margin:38px 0 8px;padding-bottom:8px;border-bottom:1px solid #d8dce2}
+h3{font-size:14px;font-weight:600;margin:20px 0 6px}
+p{margin:8px 0}
+.lead{color:#5f6570;margin:0 0 16px}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+.tag{background:#fff;border:1px solid #d8dce2;border-radius:6px;padding:4px 10px;font-size:12px;color:#5f6570}
+.tag.warn{background:#fff8e6;border-color:#e8cf94;color:#7a5600}
+.card{background:#fff;border:1px solid #d8dce2;border-radius:12px;padding:16px;margin:14px 0}
+.figure{background:#fff;border:1px solid #d8dce2;border-radius:12px;padding:12px;margin:14px 0;overflow-x:auto}
+.figure svg{display:block;width:100%;max-width:680px;height:auto;margin:0 auto}
+.note{background:#eaf2fb;border-left:3px solid #185fa5;padding:10px 14px;border-radius:0 8px 8px 0;font-size:13px;color:#0c447c;margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:13px;background:#fff}
+th,td{border:1px solid #d8dce2;padding:8px 10px;text-align:left;vertical-align:top}
+th{background:#eef1f5;font-weight:600;white-space:nowrap}
+td:first-child{white-space:nowrap;font-weight:600}
+ul{margin:8px 0;padding-left:20px}
+li{margin:4px 0}
+code{background:#eef1f5;padding:1px 5px;border-radius:4px;font-size:12px}
+footer{margin-top:36px;padding-top:14px;border-top:1px solid #d8dce2;font-size:12px;color:#5f6570}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:#5f6570;margin:10px 0}
+.swatch{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+.s-out{background:#f1efe8;border:1px solid #5f5e5a}
+.s-in{background:#e6f1fb;border:1px solid #185fa5}
+.k-bg{fill:#f1efe8;fill-opacity:.35;stroke:#b4b2a9;stroke-width:.5}
+.k-bgk{fill:#e6f1fb;fill-opacity:.4;stroke:#b5d4f4;stroke-width:.5}
+.k-hd{fill:#d3d1c7;fill-opacity:.8}
+.k-hdk{fill:#b5d4f4;fill-opacity:.8}
+.k-lb{font-size:11px;font-weight:500;fill:#2c2c2a;text-anchor:middle;dominant-baseline:central}
+.k-nx{fill:#f1efe8;stroke:#5f5e5a;stroke-width:.5}
+.k-nk{fill:#e6f1fb;stroke:#185fa5;stroke-width:.5}
+.k-tx{font-size:12px;font-weight:500;fill:#444441;text-anchor:middle;dominant-baseline:central}
+.k-tk{font-size:12px;font-weight:500;fill:#0c447c;text-anchor:middle;dominant-baseline:central}
+.k-sx{font-size:11px;font-weight:400;fill:#5f5e5a;text-anchor:middle;dominant-baseline:central}
+.k-sk{font-size:11px;font-weight:400;fill:#185fa5;text-anchor:middle;dominant-baseline:central}
+.k-ar{fill:none;stroke:#5f5e5a;stroke-width:1}
+.k-bar{fill:#eef1f5;stroke:#d8dce2;stroke-width:.5}
+.k-h1{font-size:13px;font-weight:500;fill:#1f2328;text-anchor:start;dominant-baseline:central}
+@media print{body{background:#fff}.card,.figure,table{break-inside:avoid}h2{break-after:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+<h1>Kaname · 用户 ↔ app 交互流程</h1>
+<p class="lead">主链路 16 步 + 旁路 7 条，按角色分泳道、按时间自上而下。静态快照，非运行时截图。</p>
+<div class="meta">
+<span class="tag">载体：自包含 HTML + 独立 SVG 总图</span>
+<span class="tag">泳道：6 条（外部 3 / Kaname 内部 3）</span>
+<span class="tag warn">状态：待放行（未放行）</span>
+</div>
+</header>
+
+<div class="note">
+本页按「泳道＝角色、纵向＝时间」组织。<strong>旁路不并入主链路时序</strong>，而是单独成块、用分叉点回指主链路——因为旁路是"另一种可能"，不是"下一步"。
+</div>
+
+<h2>一 · 主链路 A：从启动到面板出现（步 1–8）</h2>
+<p>关键事实：Kaname 不定义、也不重映射任何快捷键。前台 App 与 macOS 是数据源，蓝色三条泳道只负责搬运、加工与呈现。步 4 的扫描结果先落缓存，等步 5 用户触发后才取出组装，所以 4→5 是一次"等待"，不是因果推进。</p>
+<div class="figure">
+<svg viewBox="0 0 680 592" role="img" aria-label="主链路 A 泳道图：启动到面板出现">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<g class="k-bg"><rect x="40" y="40" width="100" height="512"/><rect x="140" y="40" width="100" height="512"/><rect x="240" y="40" width="100" height="512"/></g>
+<g class="k-bgk"><rect x="340" y="40" width="100" height="512"/><rect x="440" y="40" width="100" height="512"/><rect x="540" y="40" width="100" height="512"/></g>
+<rect class="k-hd" x="40" y="40" width="100" height="36"/><rect class="k-hd" x="140" y="40" width="100" height="36"/><rect class="k-hd" x="240" y="40" width="100" height="36"/>
+<rect class="k-hdk" x="340" y="40" width="100" height="36"/><rect class="k-hdk" x="440" y="40" width="100" height="36"/><rect class="k-hdk" x="540" y="40" width="100" height="36"/>
+<text class="k-lb" x="90" y="58">用户</text><text class="k-lb" x="190" y="58">前台 App</text><text class="k-lb" x="290" y="58">macOS 系统</text><text class="k-lb" x="390" y="58">Kaname 触发</text><text class="k-lb" x="490" y="58">Kaname 引擎</text><text class="k-lb" x="590" y="58">Kaname 界面</text>
+<rect class="k-nx" x="46" y="88" width="88" height="44" rx="8"/><text class="k-tx" x="90" y="103">1 启动应用</text><text class="k-sx" x="90" y="117">菜单栏常驻</text>
+<rect class="k-nx" x="246" y="148" width="88" height="44" rx="8"/><text class="k-tx" x="290" y="163">2 权限就绪</text><text class="k-sx" x="290" y="177">缺则权限向导</text>
+<rect class="k-nx" x="146" y="208" width="88" height="44" rx="8"/><text class="k-tx" x="190" y="223">3 前台 App</text><text class="k-sx" x="190" y="237">菜单栏数据源</text>
+<rect class="k-nk" x="446" y="268" width="88" height="44" rx="8"/><text class="k-tk" x="490" y="283">4 扫描菜单</text><text class="k-sk" x="490" y="297">三源合并缓存</text>
+<rect class="k-nx" x="46" y="328" width="88" height="44" rx="8"/><text class="k-tx" x="90" y="343">5 触发面板</text><text class="k-sx" x="90" y="357">手势或热键</text>
+<rect class="k-nk" x="346" y="388" width="88" height="44" rx="8"/><text class="k-tk" x="390" y="403">6 捕获按键</text><text class="k-sk" x="390" y="417">热键匹配</text>
+<rect class="k-nk" x="446" y="448" width="88" height="44" rx="8"/><text class="k-tk" x="490" y="463">7 组装列表</text><text class="k-sk" x="490" y="477">三分区排序</text>
+<rect class="k-nk" x="546" y="508" width="88" height="44" rx="8"/><text class="k-tk" x="590" y="523">8 浮层面板</text><text class="k-sk" x="590" y="537">持久覆盖前台</text>
+<g class="k-ar" marker-end="url(#arrow)">
+<path d="M 90 132 V 140 H 290 V 148"/><path d="M 290 192 V 200 H 190 V 208"/><path d="M 190 252 V 260 H 490 V 268"/><path d="M 490 312 V 320 H 90 V 328"/><path d="M 90 372 V 380 H 390 V 388"/><path d="M 390 432 V 440 H 490 V 448"/><path d="M 490 492 V 500 H 590 V 508"/>
+</g>
+</svg>
+</div>
+
+<h2>二 · 主链路 B：从筛选到执行收尾（步 9–16）</h2>
+<p>方向反过来：用户的一个按键要穿过 Kaname 内部，最终回到前台 App 生效。导航键被面板消费，完整快捷键原样放行——这就是步 15「像面板没开」能成立的原因。</p>
+<div class="figure">
+<svg viewBox="0 0 680 592" role="img" aria-label="主链路 B 泳道图：筛选到执行收尾">
+<g class="k-bg"><rect x="40" y="40" width="100" height="512"/><rect x="140" y="40" width="100" height="512"/><rect x="240" y="40" width="100" height="512"/></g>
+<g class="k-bgk"><rect x="340" y="40" width="100" height="512"/><rect x="440" y="40" width="100" height="512"/><rect x="540" y="40" width="100" height="512"/></g>
+<rect class="k-hd" x="40" y="40" width="100" height="36"/><rect class="k-hd" x="140" y="40" width="100" height="36"/><rect class="k-hd" x="240" y="40" width="100" height="36"/>
+<rect class="k-hdk" x="340" y="40" width="100" height="36"/><rect class="k-hdk" x="440" y="40" width="100" height="36"/><rect class="k-hdk" x="540" y="40" width="100" height="36"/>
+<text class="k-lb" x="90" y="58">用户</text><text class="k-lb" x="190" y="58">前台 App</text><text class="k-lb" x="290" y="58">macOS 系统</text><text class="k-lb" x="390" y="58">Kaname 触发</text><text class="k-lb" x="490" y="58">Kaname 引擎</text><text class="k-lb" x="590" y="58">Kaname 界面</text>
+<rect class="k-nx" x="46" y="88" width="88" height="44" rx="8"/><text class="k-tx" x="90" y="103">9 筛选导航</text><text class="k-sx" x="90" y="117">修饰键+字母</text>
+<rect class="k-nk" x="346" y="148" width="88" height="44" rx="8"/><text class="k-tk" x="390" y="163">10 筛选队列</text><text class="k-sk" x="390" y="177">导航键消费</text>
+<rect class="k-nk" x="546" y="208" width="88" height="44" rx="8"/><text class="k-tk" x="590" y="223">11 列表收窄</text><text class="k-sk" x="590" y="237">无匹配不关</text>
+<rect class="k-nx" x="46" y="268" width="88" height="44" rx="8"/><text class="k-tx" x="90" y="283">12 执行复制</text><text class="k-sx" x="90" y="297">Space 执行</text>
+<rect class="k-nk" x="446" y="328" width="88" height="44" rx="8"/><text class="k-tk" x="490" y="343">13 按压优先</text><text class="k-sk" x="490" y="357">失败才注入</text>
+<rect class="k-nx" x="246" y="388" width="88" height="44" rx="8"/><text class="k-tx" x="290" y="403">14 系统落地</text><text class="k-sx" x="290" y="417">注入或剪贴板</text>
+<rect class="k-nx" x="146" y="448" width="88" height="44" rx="8"/><text class="k-tx" x="190" y="463">15 菜单生效</text><text class="k-sx" x="190" y="477">像面板没开</text>
+<rect class="k-nk" x="546" y="508" width="88" height="44" rx="8"/><text class="k-tk" x="590" y="523">16 面板关闭</text><text class="k-sk" x="590" y="537">统计落盘</text>
+<g class="k-ar" marker-end="url(#arrow)">
+<path d="M 90 132 V 140 H 390 V 148"/><path d="M 390 192 V 200 H 590 V 208"/><path d="M 590 252 V 260 H 90 V 268"/><path d="M 90 312 V 320 H 490 V 328"/><path d="M 490 372 V 380 H 290 V 388"/><path d="M 290 432 V 440 H 190 V 448"/><path d="M 190 492 V 500 H 590 V 508"/>
+</g>
+</svg>
+</div>
+
+<h2>三 · 旁路：七条分叉（B1–B7）</h2>
+<p>按主链路时序排列，左侧标出从哪一步分叉，右侧写清参与角色与结果。分叉图给出"从哪里出去"，明细表给出"出去之后发生什么"——两者互补，不重复同一层信息。</p>
+<div class="figure">
+<svg viewBox="0 0 680 470" role="img" aria-label="旁路分叉示意图：B1 到 B7">
+<rect class="k-hd" x="40" y="16" width="130" height="28"/><text class="k-lb" x="105" y="30">分叉点</text>
+<rect class="k-hdk" x="220" y="16" width="420" height="28"/><text class="k-lb" x="430" y="30">旁路 B1–B7 · 参与角色与结果</text>
+<rect class="k-nx" x="40" y="60" width="130" height="44" rx="8"/><text class="k-tx" x="105" y="82">步 1 · 启动</text>
+<rect class="k-nk" x="220" y="60" width="420" height="44" rx="8"/><text class="k-tk" x="430" y="76">B1 菜单栏与设置</text><text class="k-sk" x="430" y="92">用户 → 界面 → 引擎 · 七页设置，两套触发都关＝暂停</text>
+<rect class="k-nx" x="40" y="114" width="130" height="44" rx="8"/><text class="k-tx" x="105" y="136">步 2 · 授权</text>
+<rect class="k-nk" x="220" y="114" width="420" height="44" rx="8"/><text class="k-tk" x="430" y="130">B2 权限向导</text><text class="k-sk" x="430" y="146">用户 → 界面 → macOS · 辅助功能不弹提示，输入监控才弹</text>
+<rect class="k-nx" x="40" y="168" width="130" height="44" rx="8"/><text class="k-tx" x="105" y="190">步 4 · 扫描</text>
+<rect class="k-nk" x="220" y="168" width="420" height="44" rx="8"/><text class="k-tk" x="430" y="184">B3 冲突检测与按键测试</text><text class="k-sk" x="430" y="200">引擎 → 界面 → macOS · 按类型给胜负，双监听点判定</text>
+<rect class="k-nx" x="40" y="222" width="130" height="44" rx="8"/><text class="k-tx" x="105" y="244">步 5 · 触发</text>
+<rect class="k-nk" x="220" y="222" width="420" height="44" rx="8"/><text class="k-tk" x="430" y="238">B4 全局搜索面板</text><text class="k-sk" x="430" y="254">用户 → 界面 → 前台 App · Return 先激活目标 App 再执行</text>
+<rect class="k-nx" x="40" y="276" width="130" height="44" rx="8"/><text class="k-tx" x="105" y="298">步 8 · 面板</text>
+<rect class="k-nk" x="220" y="276" width="420" height="44" rx="8"/><text class="k-tk" x="430" y="292">B5 Karabiner 让路</text><text class="k-sk" x="430" y="308">界面 → 引擎 → macOS · 写 kaname_panel，规则仅在关闭时生效</text>
+<rect class="k-nx" x="40" y="330" width="130" height="44" rx="8"/><text class="k-tx" x="105" y="352">步 12 · 执行</text>
+<rect class="k-nk" x="220" y="330" width="420" height="44" rx="8"/><text class="k-tk" x="430" y="346">B6 受管动作</text><text class="k-sk" x="430" y="362">用户 → 引擎 → 界面 · 六个动作永不执行，只允许复制</text>
+<rect class="k-nx" x="40" y="384" width="130" height="44" rx="8"/><text class="k-tx" x="105" y="406">步 16 · 关闭</text>
+<rect class="k-nk" x="220" y="384" width="420" height="44" rx="8"/><text class="k-tk" x="430" y="400">B7 三条退出路径</text><text class="k-sk" x="430" y="416">用户／前台 App／macOS → 界面 · Esc、失焦、安全输入</text>
+<g class="k-ar" marker-end="url(#arrow)">
+<path d="M 172 82 H 218"/><path d="M 172 136 H 218"/><path d="M 172 190 H 218"/><path d="M 172 244 H 218"/><path d="M 172 298 H 218"/><path d="M 172 352 H 218"/><path d="M 172 406 H 218"/>
+</g>
+</svg>
+</div>
+
+<h3>旁路明细</h3>
+<div class="card" style="padding:0;overflow-x:auto">
+<table>
+<thead><tr><th>旁路</th><th>分叉点</th><th>参与角色</th><th>用户动作</th><th>系统结果</th><th>依据章节</th></tr></thead>
+<tbody>
+<tr><td>B1 菜单栏与设置</td><td>步 1 启动</td><td>用户 → 界面 → 引擎</td><td>点菜单栏图标；⌘, 打开设置</td><td>七页设置：通用／触发／外观／统计／冲突／权限／关于；两套触发都关＝暂停；配置写入 <code>settings.json</code></td><td>菜单栏与设置、配置项</td></tr>
+<tr><td>B2 权限向导</td><td>步 2 授权</td><td>用户 → 界面 → macOS</td><td>点「请求授权」；把权限页里的 Kaname 图标拖进系统设置列表</td><td>辅助功能不弹系统提示、只打开设置页；输入监控既弹提示又打开页；面板不出现时的兜底路径</td><td>首次运行与授权、权限引导</td></tr>
+<tr><td>B3 冲突检测与按键测试</td><td>步 4 扫描</td><td>引擎 → 界面 → macOS → 用户</td><td>冲突页按类型／相关 App 筛选；点「测试这个组合键」</td><td>按类型而非严重度给出胜负；首／尾双只读监听点判定，结论标注已确认／有信息量／无法判断</td><td>冲突检测、实时按键测试</td></tr>
+<tr><td>B4 全局搜索面板</td><td>步 5 触发</td><td>用户 → 界面 → 前台 App</td><td>⌃⌥⌘F 或面板内 <code>/</code>；切换 App 范围；输入查询（分词／别名／拼音）</td><td>Return 关闭面板、先激活目标 App 再执行；可导出 Markdown；搜索面板不提供复制</td><td>搜索、多 App 范围、导出 Markdown</td></tr>
+<tr><td>B5 Karabiner 让路</td><td>步 8 面板显隐</td><td>界面 → 引擎 → macOS</td><td>设置 → 触发 开启「面板打开时通知 Karabiner」</td><td>写变量 <code>kaname_panel</code>：显示 1／关闭 0，启动与退出也写 0（崩溃不会卡在 1）；规则只在面板关闭时生效</td><td>让 Karabiner 规则让路</td></tr>
+<tr><td>B6 受管动作</td><td>步 12 执行</td><td>用户 → 引擎 → 界面</td><td>对睡眠／重启／关机／锁屏／退出登录／强制退出按执行键或点击</td><td>永不发出按键或 AX 按压，只允许复制；红色标题标注；按组合键而非本地化标题判定</td><td>受管动作</td></tr>
+<tr><td>B7 三条退出路径</td><td>步 16 关闭</td><td>用户／前台 App／macOS → 界面</td><td>Esc、再次按热键、切 App／桌面／全屏、进入密码框等安全输入</td><td>面板立即关闭或自动隐藏；无静置计时器，结束会话的是<strong>焦点</strong>而不是时间</td><td>面板操作、隐私</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>四 · 图例、依据与边界</h2>
+<div class="legend">
+<span><i class="swatch s-out"></i>外部角色：用户 / 前台 App / macOS 系统</span>
+<span><i class="swatch s-in"></i>Kaname 内部：触发 / 引擎 / 界面</span>
+<span>箭头＝跨泳道消息</span><span>自上而下＝时间</span>
+</div>
+<div class="card">
+<h3 style="margin-top:0">依据</h3>
+<p>流程与旁路均取自 <code>/Users/suliveevil/Documents/GitHub/KagiPeek/README.zh-CN.md</code>：触发方式、面板操作、搜索、多 App 范围、导出 Markdown、冲突检测、实时按键测试、受管动作、让 Karabiner 规则让路、菜单栏与设置、配置项、首次运行与授权、隐私等章节。桌面 <code>kaname-diagram.jpg</code> 是<strong>工程分层架构图</strong>，不是交互流程，未作为源材料。</p>
+<h3>本次明确未覆盖</h3>
+<ul>
+<li>安装与分发：DMG、Homebrew、签名／公证、Gatekeeper 处理</li>
+<li>工程侧：CI、覆盖率门禁、纯逻辑 target、XCTest、发布脚本</li>
+<li>运行时细节：多显示器与非整数缩放下的窗口尺寸、VoiceOver 朗读全文、隐私清单全文</li>
+<li>上一轮自查列出的 4 处主链路可打磨点（步 3 常驻数据源、步 6 触发键不入队、步 12/14 执行与复制互斥、步 16 统计落盘的泳道归属）本版<strong>未修改</strong>，保持与原图一致</li>
+</ul>
+<h3>校验与状态</h3>
+<ul>
+<li>SVG 文字落框校验：0 处问题、退出码 0（静态校验，非运行时截图）</li>
+<li>独立复核未执行：无可用复核者</li>
+<li>状态：自检完成 → <strong>待放行</strong>；未写已放行、未对外发送</li>
+</ul>
+</div>
+
+<footer>记录：2026-11-12 00:02 · 执行者：团子 · 依据：Kaname README.zh-CN 本机工作副本（未核 git HEAD）· 状态 待放行 · 本页为静态快照。</footer>
+
+</div>
+</body>
+</html>
