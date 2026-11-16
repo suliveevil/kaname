@@ -16,8 +16,11 @@ Kaname 是 macOS 菜单栏快捷键浏览器：Swift 6（strict concurrency，�
 ## 构建、测试与验证
 - 测试：`swift test --disable-sandbox`。沙箱内不加参数会直接报 `sandbox_apply: Operation not permitted`，不是卡住等结果。
 - 构建/安装：`scripts/install.sh` → `scripts/build_release.sh`（xcodebuild），失败自动回退
-  `scripts/build_swiftc.sh Release`。沙箱内 xcodebuild 可能失败并报假错（"malformed response" 等）；
-  真伪看 `build_swiftc.sh` 输出里有没有 `error:`（install.sh 走到回退时才有这段输出），沙箱外前台跑可 `BUILD SUCCEEDED`。
+  `scripts/build_swiftc.sh Release`。macOS 27.3 上 `sandbox-exec` 返回
+  `sandbox_apply: Operation not permitted`，Swift 宏插件服务器起不来，`xcodebuild` 会报
+  "produced malformed response" 这类假错（宏库本身完好）。`build_release.sh` 先探测
+  `sandbox-exec`，不可用时给 `xcodebuild` 传 `OTHER_SWIFT_FLAGS=-disable-sandbox`，仍失败才走
+  swiftc 回退；真伪看构建输出里有没有 `error:`。沙箱内 `swift test` 仍要加 `--disable-sandbox`。
 - CI（`.github/workflows/ci.yml`）是最终门槛：macos-15/26 双 toolchain，Debug 与 Release 都在
   `SWIFT_TREAT_WARNINGS_AS_ERRORS=YES` 下构建，跑 `swift test` 与 DMG 打包自检，`Core/Pure` 行覆盖低于 70% 直接失败。
 - 代码改动就同步改对应的代码注释和文档（见文末「文档」），不留到「以后补」。

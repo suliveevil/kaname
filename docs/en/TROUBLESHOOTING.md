@@ -121,16 +121,24 @@ does. The grant then survives rebuilds **on the same machine and keychain**.
 
 ## Nothing builds, or `swift test` fails immediately
 
-`sandbox-exec: sandbox_apply: Operation not permitted` means the environment cannot create a
-nested sandbox, so `xcodebuild`'s per-file compiles fail and `swift test`'s manifest build fails.
-Two workarounds:
+`sandbox-exec: sandbox_apply: Operation not permitted` means the host cannot create a nested
+sandbox. Swift 6.4 expands `@Observable` and SwiftUI macros in a `swift-plugin-server`
+subprocess wrapped in `sandbox-exec`; when that subprocess cannot start, `xcodebuild` reports
+the misleading "macro implementation could not be found … produced malformed response" (the
+macro libraries in the toolchain are intact), and `swift test`'s manifest build fails too.
+macOS 27.3 refuses the `sandbox-exec` call itself, inside and outside a sandbox alike.
+
+`scripts/build_release.sh` probes for this and passes `OTHER_SWIFT_FLAGS=-disable-sandbox` to
+`xcodebuild` on such hosts, then falls back to the swiftc build if Xcode still fails. Both
+`build_release.sh` and `install.sh` mirror a fallback bundle into the DerivedData product path,
+so the installer and the DMG step read the same app. For a direct invocation:
 
 ```sh
-swift test --disable-sandbox           # unit tests
-./scripts/build_swiftc.sh Release      # app, compiled with swiftc + explicit macro plugins
+swift test --disable-sandbox                                   # unit tests
+xcodebuild -project Kaname.xcodeproj -scheme Kaname \
+    -configuration Release OTHER_SWIFT_FLAGS='-disable-sandbox' build
+./scripts/build_swiftc.sh Release                              # app, swiftc + explicit macro plugins
 ```
-
-`./scripts/install.sh` falls back to the swiftc build automatically when `xcodebuild` fails.
 
 ## The settings reverted after a restart
 

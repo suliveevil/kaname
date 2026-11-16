@@ -141,8 +141,10 @@ final class EngineState {
     /// Everything that feeds the row order. While it is unchanged, a rebuild can reuse the
     /// previous ordering, so a modifier press that does not move anything stays cheap.
     var orderedHitsCache: (key: OrderedHitsKey, hits: [PrefixHit])?
-    /// The budget the panel window is sized for, cached on its own key.
-    var rowBudgetCache: (key: RowBudgetKey, rows: Int, headings: Int)?
+    /// The budget the panel window is sized for, cached on its own key. Cards travel with
+    /// the rows and headings: all three describe the widest list of the session, and any
+    /// one of them falling back to the page on screen makes the frame move.
+    var rowBudgetCache: (key: RowBudgetKey, rows: Int, headings: Int, cards: Int)?
     /// The corpus the panel's inline filter runs against: all three sources, built once per
     /// catalog instead of once per keystroke. Nil until the first narrowed keystroke, and
     /// again while the panel is hidden — the haystacks are the biggest thing this session

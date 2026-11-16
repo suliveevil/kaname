@@ -142,11 +142,22 @@ nonisolated enum OverlayMetrics {
         let headings = max(titledGroups.count, state.headingBudget)
         let groupHeaders = CGFloat(headings) * groupHeaderHeight
         // Every section is a card: it carries its own vertical insets, and the cards are
-        // separated by `cardGap`. Counted from the groups actually drawn, not from the
-        // headings — an untitled card still costs its padding and still needs the gap.
-        let cardChrome = CGFloat(state.groups.count)
-            * (cardVerticalInset * 2 + (titledGroups.isEmpty ? 0 : cardRuleHeight))
-        let gaps = CGFloat(max(0, state.groups.count - 1)) * cardGap
+        // separated by `cardGap`. Counted from the cards, not from the headings — an
+        // untitled card still costs its padding and still needs the gap.
+        //
+        // The card count is the third session budget. Page 1 of a multi-page list can hold
+        // only the app's card while page 2 also holds the system hotkeys'; counting the
+        // groups actually drawn added that card's insets and the gap in front of it at the
+        // page boundary, growing the window by 19 pt even though the row and heading
+        // budgets had already reserved the space. `max` keeps the frame fitting when a page
+        // somehow draws more cards than the budget predicted.
+        let cards = max(state.groups.count, state.cardBudget)
+        // The hairline under a title strip belongs to the session's headings, not to the
+        // page in front of the user: a flat app list has no titled group, so tying this to
+        // `titledGroups` flipped it on at the very page boundary the budget is hiding.
+        let cardChrome = CGFloat(cards) * (cardVerticalInset * 2
+            + (headings > 0 ? cardRuleHeight : 0))
+        let gaps = CGFloat(max(0, cards - 1)) * cardGap
 
         var height = chromeHeight + groupHeaders + cardChrome
             + CGFloat(visualRows) * rowHeight + gaps

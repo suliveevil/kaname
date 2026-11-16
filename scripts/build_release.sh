@@ -40,7 +40,46 @@ DERIVED="$BUILD_DIR/DerivedData"
 APP="$DERIVED/Build/Products/Release/Kaname.app"
 
 echo "==> Building Kaname ${VERSION} (Release)"
-xcodebuild     -project Kaname.xcodeproj     -scheme Kaname     -configuration Release     -derivedDataPath "$DERIVED"     CODE_SIGNING_ALLOWED=NO     build
+# Swift 6.4 expands external macros (@Observable, SwiftUI @State, …) in a
+# swift-plugin-server subprocess wrapped in sandbox-exec. macOS 27.3 refuses that call
+# ("sandbox_apply: Operation not permitted"), so the server exits before answering and the
+# compiler reports the misleading "macro implementation could not be found … produced
+# malformed response" — the macro libraries in the toolchain are intact. Probe the host once:
+# only where the sandbox is unavailable, ask the compiler to run those subprocesses without
+# it. A host that still has sandbox-exec keeps the default, sandboxed macro expansion.
+# The target sets no OTHER_SWIFT_FLAGS of its own, so a command-line value cannot overwrite a
+# project setting; merge the values here if one is ever added to project.pbxproj.
+SWIFT_SANDBOX_FLAG=""
+if ! /usr/bin/sandbox-exec -p '(version 1)(allow default)' /usr/bin/true >/dev/null 2>&1; then
+    echo "    sandbox-exec is unavailable; disabling the Swift macro subprocess sandbox"
+    SWIFT_SANDBOX_FLAG="-disable-sandbox"
+fi
+
+build_with_xcode() {
+    if [ -n "$SWIFT_SANDBOX_FLAG" ]; then
+        xcodebuild -project Kaname.xcodeproj -scheme Kaname -configuration Release \
+            -derivedDataPath "$DERIVED" CODE_SIGNING_ALLOWED=NO \
+            OTHER_SWIFT_FLAGS="$SWIFT_SANDBOX_FLAG" build
+    else
+        xcodebuild -project Kaname.xcodeproj -scheme Kaname -configuration Release \
+            -derivedDataPath "$DERIVED" CODE_SIGNING_ALLOWED=NO build
+    fi
+}
+
+if ! build_with_xcode; then
+    # install.sh has used this fallback since the first Xcode build failed on this machine:
+    # compile the same sources with swiftc and load the SwiftUI, Swift and Observation macros
+    # explicitly, which never starts a plugin server. That build is arm64 only; the Xcode path
+    # above produces the universal binary the published DMG is meant to carry.
+    echo "==> xcodebuild failed; falling back to the swiftc build" >&2
+    "$ROOT/scripts/build_swiftc.sh" Release
+    # Every later step here, and install.sh, read the bundle at $APP. Mirror the fallback
+    # there so a successful fallback cannot leave them installing a stale Xcode product.
+    # The codesign below re-signs after stamp_commit.sh writes the commit into the plist.
+    mkdir -p "$(dirname "$APP")"
+    rm -rf "$APP"
+    ditto "$ROOT/build/manual/Kaname.app" "$APP"
+fi
 
 # The bundle is the only single source of truth for the version: the project file carries
 # MARKETING_VERSION twice (Debug and Release) and a `sed` that matches the wrong one, or

@@ -81,6 +81,11 @@ codesign --force --sign "KagiPeek Local" \
    脚本从构建出的 bundle 读取版本，与工程文件不符就拒绝继续。它给 `.app` **和** `.dmg` 都签名，
    配置了公证配置时对两者都做公证并 stapling，最后写出 `build/Kaname-<version>.dmg.sha256`。
 
+   在 `sandbox-exec` 不可用的主机上（macOS 27.3），脚本先给 `xcodebuild` 传
+   `OTHER_SWIFT_FLAGS=-disable-sandbox`，让 Swift 的宏插件服务器能启动。Xcode 构建仍然失败时，
+   回退到 `scripts/build_swiftc.sh Release`，并把该 bundle 镜像到 DerivedData 的产物路径，
+   使 `install.sh` 与 DMG 步骤读到同一个 App。Xcode 路径产出 universal 二进制，回退产物只有 arm64。
+
    它还会给构建打时间戳：`build/.release-stamp` 存一行 `<version> <HEAD>`，工作区有未提交改动时追加
    `-dirty`。`scripts/publish_release.sh` 会把这个戳与当前 `HEAD` 对比，不一致就重建，否则版本号没变的情况下
    会重新发布上一次检出留在 `build/` 里的东西——tag 与 DMG 里的代码可能已经不一致，而输出里一个字都不提。

@@ -10,7 +10,9 @@ nonisolated final class PanelSizeStabilityTests: XCTestCase {
         return value
     }
 
-    private func state(rows: Int, budget: Int, headings: Int = 0, titled: Bool = false) -> PanelState {
+    private func state(
+        rows: Int, budget: Int, headings: Int = 0, titled: Bool = false, cards: Int = 0
+    ) -> PanelState {
         var value = PanelState()
         value.groups = [
             PanelGroup(
@@ -36,7 +38,32 @@ nonisolated final class PanelSizeStabilityTests: XCTestCase {
         ]
         value.rowBudget = budget
         value.headingBudget = headings
+        value.cardBudget = cards
         return value
+    }
+
+    /// A card with its own id, so two cards in one state are two distinct groups.
+    private func group(id: String, title: String, rows: Int) -> PanelGroup {
+        PanelGroup(
+            id: id,
+            title: title,
+            rows: (0..<rows).map { index in
+                PanelRow(
+                    id: "\(id)-r\(index)",
+                    keySegments: [],
+                    title: "Row \(index)",
+                    note: "",
+                    isGroup: false,
+                    isEnabled: true,
+                    hasConflict: false,
+                    index: index,
+                    isHighlighted: false,
+                    isCompleted: false,
+                    isFavorite: false,
+                    hintLabel: nil
+                )
+            }
+        )
     }
 
     /// 核心：按下修饰键把 24 行收窄到 3 行，窗口高度必须一动不动。
@@ -87,6 +114,54 @@ nonisolated final class PanelSizeStabilityTests: XCTestCase {
         XCTAssertEqual(
             OverlayMetrics.size(for: narrowNoHeading, settings: settings).height,
             OverlayMetrics.size(for: wideWithHeading, settings: settings).height
+        )
+    }
+
+    /// 第三条预算：同一会话里第 2 页多一张「系统热键」卡片，窗口不能跟着长高。
+    /// 旧公式把 cardChrome 和 gaps 算在当前页的 groups.count 上，翻页就多约 19pt。
+    /// 两者还必须落在夹限之内，否则「相等」只是 [190, 720] 夹出来的假象。
+    func testASecondCardOnALaterPageDoesNotGrowTheWindow() {
+        var pageOne = state(rows: 8, budget: 8, headings: 2, cards: 2)
+        pageOne.groups = [group(id: "app", title: "", rows: 8)]
+        var pageTwo = state(rows: 8, budget: 8, headings: 2, cards: 2)
+        pageTwo.groups = [
+            group(id: "app", title: "", rows: 4),
+            group(id: "system", title: "System hotkeys", rows: 4)
+        ]
+        let one = OverlayMetrics.size(for: pageOne, settings: settings)
+        let two = OverlayMetrics.size(for: pageTwo, settings: settings)
+        XCTAssertGreaterThan(one.height, OverlayMetrics.minPanelHeight)
+        XCTAssertLessThan(one.height, OverlayMetrics.maxPanelHeight)
+        XCTAssertEqual(one.height, two.height)
+    }
+
+    /// 收窄到一行时，卡片预算同样要兜住 cardChrome 与 gaps。
+    func testNarrowingKeepsTheCardBudgetReserved() {
+        var wide = state(rows: 8, budget: 8, headings: 2, cards: 2)
+        wide.groups = [
+            group(id: "app", title: "", rows: 4),
+            group(id: "system", title: "System hotkeys", rows: 4)
+        ]
+        var narrow = wide
+        narrow.groups = [group(id: "app", title: "", rows: 1)]
+        XCTAssertEqual(
+            OverlayMetrics.size(for: narrow, settings: settings).height,
+            OverlayMetrics.size(for: wide, settings: settings).height
+        )
+    }
+
+    /// cardBudget 还没算出来（0）时退回当前页的卡片数，旧行为保持不变。
+    func testZeroCardBudgetFallsBackToTheCardsOnScreen() {
+        var one = state(rows: 8, budget: 8, headings: 2)
+        one.groups = [group(id: "app", title: "", rows: 8)]
+        var two = state(rows: 8, budget: 8, headings: 2)
+        two.groups = [
+            group(id: "app", title: "", rows: 4),
+            group(id: "system", title: "System hotkeys", rows: 4)
+        ]
+        XCTAssertGreaterThan(
+            OverlayMetrics.size(for: two, settings: settings).height,
+            OverlayMetrics.size(for: one, settings: settings).height
         )
     }
 

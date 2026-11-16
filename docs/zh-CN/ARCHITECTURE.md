@@ -923,6 +923,7 @@ Esc 无论有无修饰键都关闭。按下一个没有匹配的键会让面板�
 ## 展示
 
 - `SurfacePanelController` 拥有一个非激活的 `NSPanel`，同时承载面板与搜索面板（一次只有一个界面），所以击键继续到达前台 App，直到搜索面板需要那个字段。
+- 这个窗口声明 `.canJoinAllSpaces`、`.canJoinAllApplications` 与 `.fullScreenAuxiliary`：原生全屏 Space 属于另一个 App 的窗口集，只声明 Space 归属会让复用窗口留在上一次显示它的桌面。`.stationary` 刻意不用，因为 AppKit 把它定义为桌面式窗口。每次 order-front 都重新声明归属；下一 run loop 读到 `isOnActiveSpace == false` 时，每次会话最多做一次 `.moveToActiveSpace` 重挂；触发落在 0.75 秒的切 Space 窗口内时，等窗口结束再摆一次位。
 - `WindowGeometry` 读前台窗口与焦点元素的边框（AX，0.2 秒超时）并换算成 Cocoa 坐标。`OverlayPanelController` 随后针对包含前台窗口的那块屏幕解析
   **`PanelPlacement`**（一个四例纯枚举），退回到指针下的屏幕：
 
@@ -949,7 +950,7 @@ Esc 无论有无修饰键都关闭。按下一个没有匹配的键会让面板�
 - **面板按会话里最宽的列表定尺寸，而不是按屏幕上这一页。** 按修饰键按定义就在收窄列表，所以按当前页定尺寸的窗口会在每次按下时变高、松开时又变回去——
   在屏幕上读起来就是面板在跳。`PanelState.rowBudget` / `headingBudget` 携带未收窄列表显示多少行、多少标题（什么都不拼、已分页，每个非空分区一个标题——
   App、系统热键，以及显示开关开着时每个有行的配置工具；筛选生效时每张工具卡都算展开），`OverlayMetrics` 从那预算与实际画出的行里取大者定尺寸，
-  所以边框保持不动、列表在它内部移动、永不会裁掉一行。预算在目录、芯片、只显示收藏开关、被忽略的标题或页大小变化时重算——绝不每敲一键重算。
+  所以边框保持不动、列表在它内部移动、永不会裁掉一行。`PanelState.cardBudget` 是第三条预算：每个分区都是一张卡片，靠后的页可能比第一页多一张，所以卡片内边距、标题下的细线与卡片间距也按会话里最宽的列表计数——卡片数来自同一个 `PanelSections.cardAndHeadingBudget()` 账本，它同时也供分页容量使用。预算还没算出来时，三者都退回当前页实际画出的数量。预算在目录、芯片、只显示收藏开关、被忽略的标题或页大小变化时重算——绝不每敲一键重算。
   内联筛选过去有自己的预算；那个筛选没了，随之没了的还有"查询之前那张列表"到底指什么的那个问题。
 - `PanelTheme` 存跟随系统 / 浅色 / 深色，对着窗口的 `effectiveAppearance` 解析，并把旧的 Graphite / Midnight / Paper 文件解码到深色与浅色配色上，
   所以已有的面板不会变样。
@@ -1129,7 +1130,8 @@ DMG 对着它自己的 `.sha256` 核对。它在每次分支推送与每个 pull
 因为 ad-hoc 的 cdhash 每次编译都变，于是 macOS 把每次重建都当成新 App，权限要重新问一遍。`scripts/build_swiftc.sh` 的 ad-hoc 产物只用于临时目录里的
 `codesign --verify`。它先按 bundle identifier 退出 App（一个 AppleScript `quit`），最多等十秒，然后才用 `pkill -f` 针对目标自己的可执行路径
 终止剩下的——路径很要紧，因为一次不过滤的 `pkill -f` 曾连构建副本和别的用户的实例都一起匹配上了。`scripts/build_swiftc.sh` 是给
-Xcode 构建系统根本跑不起来的主机准备的兜底构建，因为它给每次编译都套上 `sandbox-exec`，而嵌套沙箱可能被拒。
+Xcode 构建系统根本跑不起来的主机准备的兜底构建：`build_release.sh` 在 `sandbox-exec` 不可用时先尝试
+`OTHER_SWIFT_FLAGS=-disable-sandbox`，仍失败才回退到它，因为 Xcode 给每次编译都套上 `sandbox-exec`，而嵌套沙箱可能被拒。
 
 `Distribution/kaname.rb` 是一个 Homebrew cask **模板**：`version` 与 `sha256` 是占位符（`__VERSION__`、`__SHA256__`），这个文件绝不能原样安装。
 发布之后，脚本从 `build/Kaname-<version>.dmg.sha256` 里的摘要渲染它：

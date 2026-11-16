@@ -172,6 +172,11 @@ final class ShortcutEngine: ObservableObject {
     /// The same answer drives both the focus-loss close and the trigger-key self-heal, so a
     /// panel left over on another Space can never be mistaken for a fresh one.
     private var panelOwnerPID: pid_t?
+    /// The last Space-change notification and the moment this panel session opened. Both are
+    /// log-only: a frontmost change that closes a panel a second after it opened is the user
+    /// leaving the app, not a switch-animation artefact, and the log has to say which.
+    private var lastSpaceChangeAt: Date?
+    private var panelOpenedAt: Date?
     /// One focus-change episode closes the surfaces once and rescans once, even when macOS
     /// delivers deactivate, activate and Space notifications for a single switch.
     private var focusRescanGate = FocusRescanGate()
@@ -309,6 +314,8 @@ final class ShortcutEngine: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {
+                self?.lastSpaceChangeAt = Date()
+                Diag.info(.ui, "active Space changed")
                 // A Space change closes both surfaces even when the frontmost app is
                 // unchanged: the rows were read on the Space the user just left. The shared
                 // exit means a switch that also sends activate/deactivate only dismisses once.
@@ -759,6 +766,18 @@ final class ShortcutEngine: ObservableObject {
         lastExternalFrontmost = NSRunningApplication(processIdentifier: app.pid)
         Diag.debug(.scan, "frontmost changed: \(app.bundleID ?? "?") pid=\(app.pid)")
         Diag.action("app.activate", target: app.bundleID)
+        // A frontmost change that closes a panel also has to be readable as a reason: the
+        // panel's age, the Space switch's age and the two pids tell "the user left the app"
+        // apart from "a switch notification arrived late". The dismissal itself is unchanged
+        // — leaving the app is meant to close the panel.
+        if state.panel.isVisible {
+            let panelAge = panelOpenedAt.map { Int(Date().timeIntervalSince($0) * 1000) } ?? -1
+            let spaceAge = lastSpaceChangeAt.map { Int(Date().timeIntervalSince($0) * 1000) } ?? -1
+            Diag.info(.ui, """
+                focus change: panelAge=\(panelAge)ms spaceAge=\(spaceAge)ms \
+                owner=\(panelOwnerPID ?? 0) incoming=\(app.pid)
+                """)
+        }
         // The shared focus exit: if the deactivation or Space notification already closed
         // the panel, this guard makes the activation a no-op instead of a second dismiss.
         dismissOnFocusChange(includingSearch: false, checkOwner: false)
@@ -1506,6 +1525,7 @@ final class ShortcutEngine: ObservableObject {
         // windows, so it is stable even while a focus hand-off is still in flight.
         let owner = frontmostProcessIdentifier
         panelOwnerPID = owner > 0 ? owner : nil
+        panelOpenedAt = Date()
         state.panel.beginNewSession()
         // The cursor belongs to the session too: a panel opened again must not start on the
         // row where the previous one happened to leave it.
@@ -1540,6 +1560,7 @@ final class ShortcutEngine: ObservableObject {
         // No session, no owner: a late focus notification can no longer be attributed to
         // this panel, so it cannot close whichever panel is opened next.
         panelOwnerPID = nil
+        panelOpenedAt = nil
         cancelArm()
         state.phase = .idle
         state.prefix = .empty

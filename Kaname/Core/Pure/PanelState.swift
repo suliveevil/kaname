@@ -145,6 +145,14 @@ nonisolated struct PanelState {
     /// Titled group headings the window reserves for, for the same reason: a heading that
     /// disappears while narrowing must not shrink the frame either.
     var headingBudget = 0
+    /// Cards the window reserves for, again for the same reason. Every section is a card,
+    /// and a multi-page session can put the app's card on page 1 and the system hotkeys'
+    /// card on page 2: sizing the cards' insets and the gap in front of each one from the
+    /// cards drawn on the current page made the window grow by one card's chrome plus one
+    /// `cardGap` when the user paged forward, which read as the same jump the row and
+    /// heading budgets were introduced to stop. `0` means "not computed yet" and falls
+    /// back to the cards on screen.
+    var cardBudget = 0
 
     var isEmpty: Bool { groups.isEmpty }
 

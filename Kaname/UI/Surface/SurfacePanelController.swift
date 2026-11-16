@@ -47,6 +47,35 @@ final class SurfacePanelController: PanelPresenting {
     private var previousApp: NSRunningApplication?
     private var contentInstalled = false
 
+    /// The window's Space and application membership.
+    ///
+    /// Three separate declarations are needed for a floating panel that must appear over
+    /// another app's native full-screen Space: `.canJoinAllSpaces` covers every desktop,
+    /// `.canJoinAllApplications` (macOS 13+) lets it join another app's window set — which
+    /// is what a native full-screen Space is — and `.fullScreenAuxiliary` allows it beside
+    /// the full-screen window. AppKit's header names floating windows and system overlays
+    /// as the intended users of `.canJoinAllApplications`.
+    ///
+    /// `.stationary` is deliberately absent: AppKit defines it as a desktop-like window
+    /// ("unaffected by exposé, stays visible and stationary"), which holds a window on the
+    /// Space it was born on. A level above `.normal` already gets the `.transient`
+    /// behaviour a floating panel needs.
+    private static let spaceMembership: NSWindow.CollectionBehavior = [
+        .canJoinAllSpaces, .canJoinAllApplications, .fullScreenAuxiliary, .ignoresCycle
+    ]
+
+    /// `SpaceRescanGate` and `FocusRescanGate` both treat 0.75 s as one Space-switch
+    /// episode; the panel uses the same window for its post-switch re-layout.
+    private static let spaceSettleInterval: TimeInterval = 0.75
+
+    /// The last Space-change notification. Frames read during the switch animation belong
+    /// to the Space the user just left, so the panel is laid out again once it settles.
+    private var lastSpaceChangeAt: Date?
+    /// The one deferred post-switch re-layout; cancelled when a surface closes.
+    private var settleWork: DispatchWorkItem?
+    /// Limits the off-Space self-heal to one attempt per panel session.
+    private var didAttemptReanchor = false
+
     init(engine: ShortcutEngine) {
         self.engine = engine
         panel = SurfacePanel(
@@ -55,15 +84,15 @@ final class SurfacePanelController: PanelPresenting {
             backing: .buffered,
             defer: false
         )
-        // A native fullscreen Space belongs to another process: `.canJoinAllSpaces` /
-        // `.fullScreenAuxiliary` below only grant Space membership, while the WindowServer
-        // orders that Space's windows above anything at `.floating`. Keep this level static
-        // and aligned with `HUDPanelController` — macOS has no public "is this Space
-        // fullscreen" query, and Space-change notifications are an invalidation signal only
-        // (see `spaceChangeObserver` below), never a state input. `.statusBar` (25) is still
+        // A native full-screen Space belongs to another process's window set, so Space
+        // membership alone is not enough: see `spaceMembership` above. The WindowServer
+        // still orders that Space's windows above anything at `.floating`, so the level
+        // stays static and aligned with `HUDPanelController` — macOS has no public "is this
+        // Space fullscreen" query, and Space-change notifications are an invalidation signal
+        // only (see `spaceChangeObserver` below), never a state input. `.statusBar` (25) is
         // far below `popUpMenuWindow` (101), so `PopupGate.menuPresent()` stays meaningful.
         panel.level = .statusBar
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle, .stationary]
+        panel.collectionBehavior = Self.spaceMembership
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
@@ -80,7 +109,11 @@ final class SurfacePanelController: PanelPresenting {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.invalidateAnchorGeometry() }
+            MainActor.assumeIsolated {
+                self?.lastSpaceChangeAt = Date()
+                self?.cancelSettleWork()
+                self?.invalidateAnchorGeometry()
+            }
         }
         screenParametersObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
@@ -111,13 +144,16 @@ final class SurfacePanelController: PanelPresenting {
 
     func presentPanel(state: PanelState, settings: AppSettingsSnapshot) {
         guard state.isVisible else {
+            cancelSettleWork()
             closePanel()
             return
         }
 
         ensureContent()
-        if mode != .panel {
+        let isOpening = mode != .panel
+        if isOpening {
             switchToPanel()
+            didAttemptReanchor = false
         }
 
         lastPanelSettings = settings
@@ -131,6 +167,24 @@ final class SurfacePanelController: PanelPresenting {
             refreshGeometry(for: pid)
         }
 
+        drawPanel(state: state, settings: settings)
+        if isOpening {
+            // The authoritative reading is the one taken a run loop later, not the
+            // same-run-loop value in the debug line above.
+            verifyActiveSpace()
+            // A trigger inside a Space-switch animation reads frames, the front app and the
+            // menu bar from a transitional state. Show the panel at once — holding it back
+            // would swallow the user's keys with nothing on screen — but lay it out again
+            // once the switch settles.
+            if let remaining = spaceSettleRemaining() {
+                scheduleSettleReLayout(after: remaining)
+            }
+        }
+    }
+
+    /// Sizes, places and orders the shared window. Called on every repaint and once more at
+    /// the end of a Space-switch episode.
+    private func drawPanel(state: PanelState, settings: AppSettingsSnapshot) {
         let screen = targetScreen()
         let size = panelSize(for: state, settings: settings, screen: screen)
         panel.setContentSize(size)
@@ -143,18 +197,129 @@ final class SurfacePanelController: PanelPresenting {
         if panel.frame != frame {
             panel.setFrame(frame, display: true)
         }
-        panel.orderFrontRegardless()
+        orderFrontOnActiveSpace()
         // "The panel did not open" and "the panel opened where the user cannot see it" look
-        // identical from the outside; this line tells them apart.
+        // identical from the outside; this line tells them apart. Its `onActiveSpace` is a
+        // same-run-loop reading — `verifyActiveSpace()` is the one the PASS check uses.
         Diag.debug(.ui, """
             panel ordered front \(Int(size.width))x\(Int(size.height)) at \
             \(Int(panel.frame.minX)),\(Int(panel.frame.minY)) visible=\(panel.isVisible) \
-            onActiveSpace=\(panel.isOnActiveSpace) level=\(panel.level.rawValue)
+            onActiveSpace=\(panel.isOnActiveSpace) level=\(panel.level.rawValue) \
+            behavior=\(panel.collectionBehavior.rawValue)
             """)
         installOutsideClickMonitor()
         // Armed every time the panel is drawn, because its frame moves with the list: the
         // tap has to know where the panel is before it can tell a click on the panel from a
         // click past it.
+        engine.updateOutsideMouseSwallow(
+            panelFrame: WindowGeometry.cgRect(fromCocoa: panel.frame),
+            appWindowFrame: anchor.windowFrame.map(WindowGeometry.cgRect(fromCocoa:))
+        )
+    }
+
+    /// Re-anchors the one reused window on the Space the user is looking at.
+    ///
+    /// WindowServer evaluates a window's Space membership when the window is ordered in.
+    /// This window lives for the whole app lifetime, so ordering it front after a switch to
+    /// a native full-screen Space can leave it on the desktop it was last shown on. A window
+    /// still visible on an inactive Space is taken off screen first so the membership
+    /// declaration gets a fresh evaluation; a first open of a hidden window has that fresh
+    /// evaluation already, and `verifyActiveSpace()` handles the case where it does not stick.
+    ///
+    /// UNVERIFIED FALLBACK (2026-11-16): the field test that validated `spaceMembership`
+    /// (19 panel sessions, 222 redraws, WorkBuddy and Safari in native full-screen Spaces,
+    /// zero `onActiveSpace=false` readings) never entered this branch — not one
+    /// `panel ordered out` line was logged. The corrected declaration alone was sufficient.
+    /// This re-anchoring is deliberately retained as a defensive path for future
+    /// WindowServer behaviour, but it has no runtime evidence behind it and must not be
+    /// described as part of the verified fix.
+    private func orderFrontOnActiveSpace() {
+        if panel.isVisible, !panel.isOnActiveSpace {
+            panel.orderOut(nil)
+            Diag.debug(.ui, "panel ordered out: it was on an inactive Space")
+        }
+        panel.collectionBehavior = Self.spaceMembership
+        panel.orderFrontRegardless()
+    }
+
+    /// Reads `isOnActiveSpace` one run loop after the order-front, when WindowServer has
+    /// re-evaluated membership. A same-run-loop reading can be a transient value; this is
+    /// the authoritative one. A failure gets exactly one re-parenting attempt per session,
+    /// using the `.moveToActiveSpace` path proven by `SettingsWindowController`.
+    ///
+    /// UNVERIFIED FALLBACK (2026-11-16): the same field test emitted zero
+    /// `panel off active Space` warnings, so neither the one-shot `.moveToActiveSpace`
+    /// re-parenting nor either post-recheck outcome executed. Kept for the case where the
+    /// collection-behaviour declaration stops being enough; treat its success and failure
+    /// branches, and `didAttemptReanchor`, as untested code.
+    private func verifyActiveSpace() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.mode == .panel, self.panel.isVisible,
+                  !self.panel.isOnActiveSpace else { return }
+            guard !self.didAttemptReanchor else {
+                Diag.warning(.ui, "panel off active Space after re-anchor onActiveSpace=false")
+                return
+            }
+            self.didAttemptReanchor = true
+            Diag.warning(.ui, "panel off active Space; re-anchoring once")
+            self.panel.orderOut(nil)
+            // `.moveToActiveSpace` only applies while the window is off screen. Keep the
+            // cross-app and full-screen bits so the panel still reaches another app's Space.
+            self.panel.collectionBehavior = [
+                .moveToActiveSpace, .canJoinAllApplications, .fullScreenAuxiliary, .ignoresCycle
+            ]
+            self.panel.orderFrontRegardless()
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.mode == .panel else { return }
+                if self.panel.isOnActiveSpace {
+                    Diag.info(.ui, "panel re-anchored on active Space")
+                } else {
+                    Diag.warning(.ui, "panel still off active Space onActiveSpace=false")
+                }
+            }
+        }
+    }
+
+    /// How long until the Space switch that just happened can be treated as settled; nil
+    /// outside that window.
+    private func spaceSettleRemaining() -> TimeInterval? {
+        guard let changed = lastSpaceChangeAt else { return nil }
+        let remaining = Self.spaceSettleInterval - Date().timeIntervalSince(changed)
+        return remaining > 0 ? remaining : nil
+    }
+
+    private func scheduleSettleReLayout(after delay: TimeInterval) {
+        cancelSettleWork()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.settleWork = nil
+            self.settlePanel()
+        }
+        settleWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
+
+    private func cancelSettleWork() {
+        settleWork?.cancel()
+        settleWork = nil
+    }
+
+    /// Re-lays the panel out after the switch has settled, from frames and an anchor read on
+    /// the new Space rather than the transitional ones the trigger saw.
+    private func settlePanel() {
+        guard mode == .panel, let settings = lastPanelSettings else { return }
+        let screen = targetScreen()
+        let size = panelSize(for: engine.state.panel, settings: settings, screen: screen)
+        panel.setContentSize(size)
+        let frame = panelFrame(size: size, settings: settings, screen: screen)
+        if panel.frame != frame {
+            panel.setFrame(frame, display: true)
+        }
+        // Do not order front again: a re-anchor may already have put `.moveToActiveSpace` on
+        // the window, and re-declaring the cross-Space behaviour here would undo it. This
+        // reading is taken once the switch has settled, so it is the authoritative verdict.
+        verifyActiveSpace()
+        Diag.info(.ui, "Space settled: panel re-laid out onActiveSpace=\(panel.isOnActiveSpace)")
         engine.updateOutsideMouseSwallow(
             panelFrame: WindowGeometry.cgRect(fromCocoa: panel.frame),
             appWindowFrame: anchor.windowFrame.map(WindowGeometry.cgRect(fromCocoa:))
@@ -225,6 +390,7 @@ final class SurfacePanelController: PanelPresenting {
     // MARK: - Search palette
 
     func presentSearch() {
+        cancelSettleWork()
         ensureContent()
         if mode != .search {
             if mode == .hidden {
@@ -304,11 +470,20 @@ final class SurfacePanelController: PanelPresenting {
     }
 
     private func hide() {
+        let closingMode = mode
+        cancelSettleWork()
         mode = .hidden
         removeSearchKeyMonitor()
         removeOutsideClickMonitor()
         // Nothing is showing, so nothing is left to protect the app behind from.
         engine.updateOutsideMouseSwallow(panelFrame: nil, appWindowFrame: nil)
+        // A surface dismissed while off the active Space is a different failure from one
+        // the user simply left the app from. Record the reading before ordering the window
+        // out, while it still has a Space to be read against.
+        Diag.debug(.ui, """
+            surface hidden from \(String(describing: closingMode)) \
+            onActiveSpace=\(panel.isOnActiveSpace)
+            """)
         panel.orderOut(nil)
         invalidateAnchorGeometry()
     }

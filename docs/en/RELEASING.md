@@ -97,6 +97,12 @@ trusted (`security add-trusted-cert -r trustRoot -k "$KC" cert.pem`, or Keychain
    match the project file. It signs the `.app` **and** the `.dmg`, notarizes and staples both
    when a notary profile is configured, and writes `build/Kaname-<version>.dmg.sha256`.
 
+   On a host where `sandbox-exec` is unavailable (macOS 27.3), it first passes
+   `OTHER_SWIFT_FLAGS=-disable-sandbox` to `xcodebuild` so Swift's macro plugin server can
+   start. If the Xcode build still fails, it falls back to `scripts/build_swiftc.sh Release`
+   and mirrors that bundle into the DerivedData product path, so `install.sh` and the DMG step
+   read the same app. The Xcode path produces the universal binary; the fallback is arm64 only.
+
    It also stamps the build: `build/.release-stamp` holds one line, `<version> <HEAD>`, with
    `-dirty` appended when the tree had uncommitted changes. `scripts/publish_release.sh`
    compares that stamp with the current `HEAD` and rebuilds when it does not match, because an

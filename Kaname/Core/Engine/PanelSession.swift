@@ -128,16 +128,18 @@ final class PanelSession {
         return counts
     }
 
-    /// How many rows and headings the panel window must be sized for: the widest list this
-    /// session can show, which is the same list with nothing composed.
+    /// How many rows, headings and cards the panel window must be sized for: the widest
+    /// list this session can show, which is the same list with nothing composed.
     ///
     /// Modifiers only ever remove rows, so sizing the window from the page on screen made
     /// it shrink on every press and grow again on release — the panel visibly jumping. The
     /// frame is now computed from this budget and holds while the list moves inside it.
+    /// Cards are part of the same budget: a later page can carry a second card that the
+    /// first does not, and every extra card costs its insets and the gap in front of it.
     /// The favorites rules that feed ranking, row budgeting and search, as one value — see
     /// `FavoritesPolicy`. The cache keys hold it whole, so a rule change cannot leave a
     /// stale order or budget behind.
-    private func unnarrowedBudget() -> (rows: Int, headings: Int) {
+    private func unnarrowedBudget() -> (rows: Int, headings: Int, cards: Int) {
         let key = RowBudgetKey(
             scannedAt: state.catalog.scannedAt,
             showsFavoritesOnly: state.favoritesPolicy.showsFavoritesOnly,
@@ -152,7 +154,7 @@ final class PanelSession {
             pageSize: panelPageSize
         )
         if let cached = state.rowBudgetCache, cached.key == key {
-            return (cached.rows, cached.headings)
+            return (cached.rows, cached.headings, cached.cards)
         }
         var hits = PrefixResolver.hits(
             for: .empty,
@@ -182,14 +184,18 @@ final class PanelSession {
         // Every section flows through the same pages. A short list reserves only its own
         // rows; the other sections' cards still get their frame and heading. One card per
         // non-empty tool, not one card for the whole tool block.
-        let headings = PanelSections.cardAndHeadingBudget(
+        let ledger = PanelSections.cardAndHeadingBudget(
             systemCount: state.systemBindings.count,
             toolCounts: Array(toolCounts.values),
             appHeading: state.settings.panelOrder == .byMenuGroup
-        ).headings
-        let allocation = PanelBudget.budget(totalRows: total, pageSize: pageSize, headings: headings)
-        state.rowBudgetCache = (key, allocation.rows, allocation.headings)
-        return (allocation.rows, allocation.headings)
+        )
+        let allocation = PanelBudget.budget(
+            totalRows: total, pageSize: pageSize, headings: ledger.headings
+        )
+        // The ledger's `cards` is the third budget. It was computed here all along and
+        // discarded, leaving the window's card chrome and gaps tied to the current page.
+        state.rowBudgetCache = (key, allocation.rows, allocation.headings, ledger.cards)
+        return (allocation.rows, allocation.headings, ledger.cards)
     }
 
     /// One page of the ranked sequence, plus where it sits in the whole.
@@ -480,6 +486,7 @@ final class PanelSession {
         state.panel.flatRowIDs = built.flatRowIDs
         state.panel.rowBudget = budget.rows
         state.panel.headingBudget = budget.headings
+        state.panel.cardBudget = budget.cards
         state.panelSelectionIndex = PanelSelection.resolved(
             previous: state.panelSelectionIndex,
             rowCount: built.flatRowIDs.count

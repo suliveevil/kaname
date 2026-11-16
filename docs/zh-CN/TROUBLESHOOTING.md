@@ -89,14 +89,16 @@ Karabiner-Elements 在 Kaname 的事件 tap **下方**改写键盘，所以绑�
 
 ## 构建不起来，或 `swift test` 立刻失败
 
-`sandbox-exec: sandbox_apply: Operation not permitted` 表示环境无法创建嵌套 sandbox，于是 `xcodebuild` 的逐文件编译失败、`swift test` 的清单构建失败。两个绕法：
+`sandbox-exec: sandbox_apply: Operation not permitted` 表示主机无法创建嵌套 sandbox。Swift 6.4 在套着 `sandbox-exec` 的 `swift-plugin-server` 子进程里展开 `@Observable` 与 SwiftUI 宏；子进程起不来时，`xcodebuild` 会报具有误导性的 "macro implementation could not be found … produced malformed response"（工具链里的宏库完好无损），`swift test` 的清单构建也失败。macOS 27.3 是系统本身拒绝 `sandbox-exec` 调用，沙箱内外都一样。
+
+`scripts/build_release.sh` 会探测这个条件，在这类主机上给 `xcodebuild` 传 `OTHER_SWIFT_FLAGS=-disable-sandbox`，Xcode 仍然失败才回退到 swiftc 构建。`build_release.sh` 与 `install.sh` 都会把回退产物镜像到 DerivedData 的产物路径，因此安装器与 DMG 步骤读到的是同一个 App。直接调用时：
 
 ```sh
-swift test --disable-sandbox           # 纯逻辑测试
-./scripts/build_swiftc.sh Release      # 用 swiftc + 显式宏插件编译 App
+swift test --disable-sandbox                                   # 纯逻辑测试
+xcodebuild -project Kaname.xcodeproj -scheme Kaname \
+    -configuration Release OTHER_SWIFT_FLAGS='-disable-sandbox' build
+./scripts/build_swiftc.sh Release                              # 用 swiftc + 显式宏插件编译 App
 ```
-
-`xcodebuild` 失败时，`./scripts/install.sh` 会自动退回到 swiftc 构建。
 
 ## 重启后设置被还原
 
