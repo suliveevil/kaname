@@ -37,7 +37,7 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em;bac
 <div class="eyebrow">KANAME · INTERNAL DATA FLOW</div>
 <h1>Kaname 内部数据流 · 跨泳道交互图</h1>
 <p class="lede">两张图是同一条链的连续两半：前半段是数据如何被采集、建模、缓存；后半段是一个按键事件如何驱动状态机、最终写回磁盘。步骤编号 1–16 连续，不是两条独立流程。</p>
-<p class="meta">依据：KagiPeek 仓库 <code>README.zh-CN.md</code> 与 <code>docs/zh-CN/ARCHITECTURE.md</code> 本机工作副本（未核 git HEAD）；模块分层参考桌面 <code>kaname-diagram.jpg</code>。整理：2026-11-12 · 团子。状态：自检完成 → 待放行。</p>
+<p class="meta">依据：kaname 仓库 v2.3.4 (<code>ba3cd43</code>) 的 <code>README.md</code>、<code>docs/zh-CN/ARCHITECTURE.md</code>、<code>CHANGELOG.md</code> 与 <code>Kaname/Core/</code> 源码，2026-11-18 逐条复核；模块分层参考桌面 <code>kaname-diagram.jpg</code>。整理：2026-11-12 · 团子。状态：已复核。</p>
 </header>
 
 <section class="bridge">
@@ -46,6 +46,7 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em;bac
 <li><strong>列＝模块泳道</strong>：外部输入 / Core·适配 / Core·Pure / Engine / UI 界面 / 本地数据。灰＝系统边界，蓝＝Kaname 内部模块。</li>
 <li><strong>自上而下＝处理顺序</strong>，折线箭头＝跨泳道数据传递，两图各 7 次跳转。箭头只走行间留白，不压节点文字。</li>
 <li><strong>衔接点在步 8 → 9</strong>：图一止于「8 目录快照」，此刻数据已就位但尚无事件；图二从「9 按键事件」接续，方向反转为事件驱动状态、再回流适配层与磁盘。</li>
+<li><strong>2.3.4 复核</strong>：主链 16 步的编号与泳道归属不变，行为变化集中在文末「2.3.4 复核增补」；Space 切换通知只作失效信号，不进入状态输入。</li>
 </ul>
 </section>
 
@@ -152,7 +153,7 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em;bac
 <rect x="40" y="560" width="600" height="24" fill="#FFFFFF" stroke="#D3D1C7" stroke-width="0.5"/>
 <text class="kLg" x="340" y="572">灰＝边界　蓝＝内部模块　→ 跨泳道数据传递　自上而下＝处理顺序</text>
 </svg>
-<figcaption>线程边界：吞键决定必须在 tap 线程当场做（读引擎发布的 <code>ComposedSwallowState</code> 快照），而路由与组合解析可慢一跳在主 actor 上完成；中间由最多 32 条事件的 <code>InputMailbox</code> 按批投递，丢弃时补 <code>.interruption</code>。</figcaption>
+<figcaption>线程边界：吞键决定必须在 tap 线程当场做（读引擎发布的 <code>ComposedSwallowState</code> 快照），而路由与组合解析可慢一跳在主 actor 上完成；中间由最多 32 条事件的 <code>InputMailbox</code> 按批投递，丢弃时补 <code>.interruption</code>。2.3.4 起，步 14 的窗口尺寸改按会话级卡片预算计算，翻页不再改变高度。</figcaption>
 </figure>
 
 <section class="takeaway">
@@ -160,10 +161,20 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em;bac
 <p>Kaname 内部没有「数据库」，只有一条单向流入、四处分叉、两级缓存的管道：三路输入经适配层汇入 → 在 <code>Core/Pure</code> 统一成纯值并一次算出索引 → <code>Engine</code> 持有状态与目录快照 → UI 订阅状态、执行回流适配层 → 只有 <code>settings.json</code> / <code>usage.json</code> 是用户数据，其余全是可再生缓存。</p>
 </section>
 
+<section class="bridge">
+<h2>2.3.4 复核增补（2026-11-18 · ba3cd43）</h2>
+<ul>
+<li><strong>步 1 与步 9 之间 · Space 通知只是失效信号。</strong> <code>NSWorkspace.activeSpaceDidChangeNotification</code> 记下切换时间，不参与状态判定；动画期间的触发仍立即显示面板，0.75 s 稳定期结束时补一次重排。</li>
+<li><strong>步 8 之后 · 面板窗口的归属。</strong> <code>SurfacePanelController</code> 的 <code>collectionBehavior</code> 补上 <code>.canJoinAllApplications</code>（macOS 13+）、移除 <code>.stationary</code>，层级保持 <code>.statusBar</code>；每次 order-front 重新声明成员资格，<code>isOnActiveSpace</code> 在下一个 run loop 复查。重挂与一次性 <code>.moveToActiveSpace</code> 自愈属<strong>未验证兜底</strong>，19 会话 / 222 重绘的实机测试未走到。</li>
+<li><strong>步 14 · 尺寸按会话预算。</strong> <code>PanelSections.cardAndHeadingBudget()</code> 的第三个计数经 <code>EngineState.rowBudgetCache</code> 写入 <code>PanelState.cardBudget</code>，再进 <code>OverlayMetrics</code>；标题细线也跟随会话级标题预算。卡片内边距、间距与细线不再按当前页的分组数计算。</li>
+<li><strong>步 15 / 16 · 归属与归因。</strong> chord 重放逐步预检后才激活目标或投递事件；重放完成、搜索激活交接与光标恢复由各自的 surface session 持有，替换界面或停止引擎使旧工作失效。失焦关闭时记 <code>panelAge</code>、<code>spaceAge</code> 与两个 pid，关闭契约本身不变。</li>
+</ul>
+</section>
+
 <footer>
-<p><strong>范围</strong>：仅主链 16 步。未画：冲突类型判定与双 tap 实时测试、检查更新、<code>conflicts-cache.json</code> / logs / crash 写入、Markdown 导出、设置七页与迁移、Karabiner <code>kaname_panel</code> 变量通知、权限向导、搜索范围切换的重扫路径、缓存读回的反向支路。</p>
+<p><strong>范围</strong>：仅主链 16 步，加上文末 2.3.4 复核增补。未画：冲突类型判定与双 tap 实时测试、检查更新、<code>conflicts-cache.json</code> / logs / crash 写入、Markdown 导出、设置七页与迁移、Karabiner <code>kaname_panel</code> 变量通知、权限向导、搜索范围切换的重扫路径、缓存读回的反向支路、Xcode 宏沙箱回退与 Homebrew 发布。</p>
 <p><strong>载体</strong>：本页自包含，零外部资源；两块图为本会话已渲染 SVG 原样内联，第二块仅作 <code>marker</code> id 去重（图形内容不变）。可离线双击打开，亦可整页打印。</p>
-<p>记录：2026-11-12 · 执行者：团子 · 状态 待放行 · 依据为本机工作副本（未核 git HEAD）。</p>
+<p>记录：2026-11-12 整理 · 执行者：团子 · 2026-11-18 按 kaname v2.3.4 (<code>ba3cd43</code>) 复核 · 状态 已复核。</p>
 </footer>
 </main>
 </body>

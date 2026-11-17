@@ -114,7 +114,26 @@ codesign --force --sign "KagiPeek Local" \
    ./scripts/publish_release.sh
    ```
 
-7. **本地安装并冒烟测试。** `./scripts/install.sh`（它暂存 bundle、校验签名、把被替换的构建复制到
+7. **推送 Homebrew cask。** `scripts/publish_release.sh` 把 `Distribution/kaname.rb` 渲染成
+   `build/kaname.rb`，填入发布版本号与 DMG 的 sha256，并删掉仅模板使用的注释块。tap 的提交必须
+   排在**两份 release 资产都上线之后**，否则每次 `brew install` 都会 404。设置了
+   `KANAME_TAP_DIR` 且指向 `suliveevil/homebrew-tap` 的本地检出时，脚本会把渲染后的文件复制到
+   `Casks/kaname.rb`，提交 `kaname <version>` 并推送；未设置时手工执行同一套动作：
+
+   ```sh
+   cp build/kaname.rb <tap>/Casks/kaname.rb
+   git -C <tap> add Casks/kaname.rb
+   git -C <tap> commit -m "kaname <version>"
+   git -C <tap> push
+   brew audit --cask --strict suliveevil/tap/kaname
+   brew info --cask suliveevil/tap/kaname   # 应显示新版本
+   ```
+
+   本机 `/opt/homebrew/Library/Taps/` 下的 Homebrew 克隆需要先 `git pull`（或 `brew update`），
+   审计才能读到刚推上去的 cask。2.3.4 已于 2026-11-18 以
+   `suliveevil/homebrew-tap@1eddadd` 推送，严格审计通过。
+
+8. **本地安装并冒烟测试。** `./scripts/install.sh`（它暂存 bundle、校验签名、把被替换的构建复制到
    `~/Library/Application Support/Kaname/backups/`，然后换入新的）。安装器拒绝 ad-hoc 构建：
    只有 `Kaname Local` 或 Developer ID 签名才允许放进 `/Applications`。然后过一遍短清单：
    唤出面板、用 ⌘ 收窄、执行一个菜单项、复制一个菜单项、用 `/` 打开搜索面板、切换它的 App 范围、

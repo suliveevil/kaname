@@ -21,6 +21,8 @@ are reachable too. [CHANGELOG.md](CHANGELOG.md) carries the per-version detail.
 
 ## Screenshots
 
+_Re-captured from the installed 2.3.4 build (`ba3cd43`) on 2026-11-18 with the app's built-in `KANAME_PREVIEW` fixture. The three flow diagrams under [`assets/`](assets/) were re-checked against the same commit: [data flow](assets/kaname-dataflow.html), [interaction](assets/kaname-interaction.html), [swimlane SVG](assets/kaname-swimlane.svg)._
+
 <!-- Screenshots are captured by the app's built-in preview mode. -->
 
 ![The panel's two cards: the app's menu items, then the system's hotkeys](docs/images/overlay.png)
@@ -112,7 +114,7 @@ brew tap suliveevil/tap
 brew install --cask kaname
 ```
 
-The cask lives in the public `suliveevil/homebrew-tap` repository and points at the DMG attached to the matching GitHub release. [`Distribution/kaname.rb`](Distribution/kaname.rb) is the template that `scripts/publish_release.sh` renders after the release upload; it is not installable until the DMG and its `.sha256` exist.
+The cask lives in the public `suliveevil/homebrew-tap` repository and points at the DMG attached to the matching GitHub release. [`Distribution/kaname.rb`](Distribution/kaname.rb) is the template that `scripts/publish_release.sh` renders after the release upload; it is not installable until the DMG and its `.sha256` exist. The tap commit comes **after** both assets are live, and is audited with `brew audit --cask --strict suliveevil/tap/kaname`; the exact sequence is in [docs/en/RELEASING.md](docs/en/RELEASING.md).
 
 - **Not notarized.** Homebrew quarantines downloads by default, so the first launch is blocked by Gatekeeper. Approve Kaname once under **System Settings → Privacy & Security → Open Anyway**, or strip the attribute from the installed copy with `xattr -dr com.apple.quarantine /Applications/Kaname.app`. Homebrew 7 removed `--no-quarantine`, and every `brew upgrade` downloads a fresh copy that is quarantined again.
 - **Upgrade:** `brew upgrade --cask kaname`. Quit Kaname first — it is a menu bar agent, and a running copy keeps the old binary and event tap alive.

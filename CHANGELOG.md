@@ -4,6 +4,12 @@ All notable changes to this project are documented here, in the order the work h
 
 ## [Unreleased]
 
+### Documentation
+
+- The eight screenshots in `docs/images/` were re-captured from the installed 2.3.4 build with the built-in `KANAME_PREVIEW` fixture. The Settings screenshot now shows the sidebar that replaced the old segmented picker; its selected row renders as a flat black block because `cacheDisplay` cannot capture the system selection material.
+- The data-flow diagram, interaction diagram and swimlane SVG in `assets/` were re-checked against `ba3cd43` on 2026-11-18: they now record the full-screen Space membership fix, the session-wide `cardBudget`, the focus-change attribution log and the unverified fallback branches. Their stale `KagiPeek` / "unchecked working copy" / "pending approval" notes were removed, and both READMEs now link the assets.
+- The Homebrew cask was pushed to `suliveevil/homebrew-tap` as `kaname 2.3.4` (`1eddadd`); `brew audit --cask --strict suliveevil/tap/kaname` passes and `brew info --cask` reports `2.3.3 → 2.3.4`. `docs/en/RELEASING.md` and `docs/zh-CN/RELEASING.md` now document the cask push step, and both v2.3.4 release notes record the tap update.
+
 ## Kaname 2.3.4 (2026-11-16)
 
 ### Fixed

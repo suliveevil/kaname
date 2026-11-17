@@ -136,7 +136,27 @@ trusted (`security add-trusted-cert -r trustRoot -k "$KC" cert.pem`, or Keychain
    ./scripts/publish_release.sh
    ```
 
-7. **Install locally and smoke test.** `./scripts/install.sh` (it stages the bundle, verifies the
+7. **Push the Homebrew cask.** `scripts/publish_release.sh` renders
+   `Distribution/kaname.rb` into `build/kaname.rb` with the release version and the DMG's
+   sha256, stripping the template-only comment block. The tap commit must come **after** both
+   release assets are live, or every `brew install` gets a 404. With `KANAME_TAP_DIR` pointing
+   at a checkout of `suliveevil/homebrew-tap`, the script copies the rendered file to
+   `Casks/kaname.rb`, commits `kaname <version>` and pushes. Without it, do the same by hand:
+
+   ```sh
+   cp build/kaname.rb <tap>/Casks/kaname.rb
+   git -C <tap> add Casks/kaname.rb
+   git -C <tap> commit -m "kaname <version>"
+   git -C <tap> push
+   brew audit --cask --strict suliveevil/tap/kaname
+   brew info --cask suliveevil/tap/kaname   # shows the new version
+   ```
+
+   The local Homebrew clone under `/opt/homebrew/Library/Taps/` needs a `git pull` (or
+   `brew update`) before the audit sees the pushed cask. 2.3.4 was pushed as
+   `suliveevil/homebrew-tap@1eddadd` on 2026-11-18 with a clean strict audit.
+
+8. **Install locally and smoke test.** `./scripts/install.sh` (it stages the bundle, verifies the
    signature, copies the replaced build to `~/Library/Application Support/Kaname/backups/`,
    then swaps the new one in). The installer refuses an ad-hoc build: only `Kaname Local` or a
    Developer ID signature may sit in `/Applications`. Then the short list:

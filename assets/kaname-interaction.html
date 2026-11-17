@@ -54,11 +54,12 @@ footer{margin-top:36px;padding-top:14px;border-top:1px solid #d8dce2;font-size:1
 
 <header>
 <h1>Kaname · 用户 ↔ app 交互流程</h1>
-<p class="lead">主链路 16 步 + 旁路 7 条，按角色分泳道、按时间自上而下。静态快照，非运行时截图。</p>
+<p class="lead">主链路 16 步 + 旁路 7 条，按角色分泳道、按时间自上而下。2.3.4 复核后的行为变化集中在第五节，主链编号保持不变。静态快照，非运行时截图。</p>
 <div class="meta">
 <span class="tag">载体：自包含 HTML + 独立 SVG 总图</span>
 <span class="tag">泳道：6 条（外部 3 / Kaname 内部 3）</span>
-<span class="tag warn">状态：待放行（未放行）</span>
+<span class="tag">状态：已按 v2.3.4 (ba3cd43) 复核</span>
+<span class="tag">复核：2026-11-18</span>
 </div>
 </header>
 
@@ -83,7 +84,7 @@ footer{margin-top:36px;padding-top:14px;border-top:1px solid #d8dce2;font-size:1
 <rect class="k-nx" x="46" y="328" width="88" height="44" rx="8"/><text class="k-tx" x="90" y="343">5 触发面板</text><text class="k-sx" x="90" y="357">手势或热键</text>
 <rect class="k-nk" x="346" y="388" width="88" height="44" rx="8"/><text class="k-tk" x="390" y="403">6 捕获按键</text><text class="k-sk" x="390" y="417">热键匹配</text>
 <rect class="k-nk" x="446" y="448" width="88" height="44" rx="8"/><text class="k-tk" x="490" y="463">7 组装列表</text><text class="k-sk" x="490" y="477">三分区排序</text>
-<rect class="k-nk" x="546" y="508" width="88" height="44" rx="8"/><text class="k-tk" x="590" y="523">8 浮层面板</text><text class="k-sk" x="590" y="537">持久覆盖前台</text>
+<rect class="k-nk" x="546" y="508" width="88" height="44" rx="8"/><text class="k-tk" x="590" y="523">8 浮层面板</text><text class="k-sk" x="590" y="537">落在当前 Space</text>
 <g class="k-ar" marker-end="url(#arrow)">
 <path d="M 90 132 V 140 H 290 V 148"/><path d="M 290 192 V 200 H 190 V 208"/><path d="M 190 252 V 260 H 490 V 268"/><path d="M 490 312 V 320 H 90 V 328"/><path d="M 90 372 V 380 H 390 V 388"/><path d="M 390 432 V 440 H 490 V 448"/><path d="M 490 492 V 500 H 590 V 508"/>
 </g>
@@ -150,7 +151,7 @@ footer{margin-top:36px;padding-top:14px;border-top:1px solid #d8dce2;font-size:1
 <tr><td>B4 全局搜索面板</td><td>步 5 触发</td><td>用户 → 界面 → 前台 App</td><td>⌃⌥⌘F 或面板内 <code>/</code>；切换 App 范围；输入查询（分词／别名／拼音）</td><td>Return 关闭面板、先激活目标 App 再执行；可导出 Markdown；搜索面板不提供复制</td><td>搜索、多 App 范围、导出 Markdown</td></tr>
 <tr><td>B5 Karabiner 让路</td><td>步 8 面板显隐</td><td>界面 → 引擎 → macOS</td><td>设置 → 触发 开启「面板打开时通知 Karabiner」</td><td>写变量 <code>kaname_panel</code>：显示 1／关闭 0，启动与退出也写 0（崩溃不会卡在 1）；规则只在面板关闭时生效</td><td>让 Karabiner 规则让路</td></tr>
 <tr><td>B6 受管动作</td><td>步 12 执行</td><td>用户 → 引擎 → 界面</td><td>对睡眠／重启／关机／锁屏／退出登录／强制退出按执行键或点击</td><td>永不发出按键或 AX 按压，只允许复制；红色标题标注；按组合键而非本地化标题判定</td><td>受管动作</td></tr>
-<tr><td>B7 三条退出路径</td><td>步 16 关闭</td><td>用户／前台 App／macOS → 界面</td><td>Esc、再次按热键、切 App／桌面／全屏、进入密码框等安全输入</td><td>面板立即关闭或自动隐藏；无静置计时器，结束会话的是<strong>焦点</strong>而不是时间</td><td>面板操作、隐私</td></tr>
+<tr><td>B7 三条退出路径</td><td>步 16 关闭</td><td>用户／前台 App／macOS → 界面</td><td>Esc、再次按热键、切 App／桌面／全屏、进入密码框等安全输入</td><td>面板立即关闭或自动隐藏；无静置计时器，结束会话的是<strong>焦点</strong>而不是时间。2.3.4 起关闭时记 <code>panelAge</code> / <code>spaceAge</code> 与两个 pid</td><td>面板操作、隐私、2.3.4 更新日志</td></tr>
 </tbody>
 </table>
 </div>
@@ -163,23 +164,34 @@ footer{margin-top:36px;padding-top:14px;border-top:1px solid #d8dce2;font-size:1
 </div>
 <div class="card">
 <h3 style="margin-top:0">依据</h3>
-<p>流程与旁路均取自 <code>/Users/suliveevil/Documents/GitHub/KagiPeek/README.zh-CN.md</code>：触发方式、面板操作、搜索、多 App 范围、导出 Markdown、冲突检测、实时按键测试、受管动作、让 Karabiner 规则让路、菜单栏与设置、配置项、首次运行与授权、隐私等章节。桌面 <code>kaname-diagram.jpg</code> 是<strong>工程分层架构图</strong>，不是交互流程，未作为源材料。</p>
+<p>流程与旁路取自 <code>kaname/README.zh-CN.md</code> 与 <code>README.md</code>：触发方式、面板操作、搜索、多 App 范围、导出 Markdown、冲突检测、实时按键测试、受管动作、让 Karabiner 规则让路、菜单栏与设置、配置项、首次运行与授权、隐私等章节。2026-11-18 按 v2.3.4 (<code>ba3cd43</code>) 的 <code>CHANGELOG.md</code>、<code>Kaname/UI/Surface/SurfacePanelController.swift</code> 与 <code>Kaname/Core/</code> 逐条复核，增补见第五节。桌面 <code>kaname-diagram.jpg</code> 是<strong>工程分层架构图</strong>，不是交互流程，未作为源材料。</p>
 <h3>本次明确未覆盖</h3>
 <ul>
 <li>安装与分发：DMG、Homebrew、签名／公证、Gatekeeper 处理</li>
 <li>工程侧：CI、覆盖率门禁、纯逻辑 target、XCTest、发布脚本</li>
 <li>运行时细节：多显示器与非整数缩放下的窗口尺寸、VoiceOver 朗读全文、隐私清单全文</li>
-<li>上一轮自查列出的 4 处主链路可打磨点（步 3 常驻数据源、步 6 触发键不入队、步 12/14 执行与复制互斥、步 16 统计落盘的泳道归属）本版<strong>未修改</strong>，保持与原图一致</li>
+<li>上一轮自查列出的 4 处主链路可打磨点（步 3 常驻数据源、步 6 触发键不入队、步 12/14 执行与复制互斥、步 16 统计落盘的泳道归属）在 2.3.4 复核后<strong>仍按原图保留</strong>：它们是叙述粒度问题，不是行为变化</li>
+<li>2.3.4 未画进主链：Xcode 宏沙箱回退、Homebrew tap 发布、CI 与覆盖率门禁、截图预览工具的渲染细节</li>
 </ul>
 <h3>校验与状态</h3>
 <ul>
 <li>SVG 文字落框校验：0 处问题、退出码 0（静态校验，非运行时截图）</li>
-<li>独立复核未执行：无可用复核者</li>
-<li>状态：自检完成 → <strong>待放行</strong>；未写已放行、未对外发送</li>
+<li>2026-11-18 按 v2.3.4 (<code>ba3cd43</code>) 源码与更新日志逐条复核；新增「五 · 2.3.4 复核增补」</li>
+<li>状态：<strong>已复核</strong>；三张流程资产与 <code>docs/images/</code> 的 8 张界面截图已在同一轮更新</li>
 </ul>
 </div>
 
-<footer>记录：2026-11-12 00:02 · 执行者：团子 · 依据：Kaname README.zh-CN 本机工作副本（未核 git HEAD）· 状态 待放行 · 本页为静态快照。</footer>
+<h2>五 · 2.3.4 复核增补</h2>
+<div class="card">
+<ul>
+<li><strong>步 8 · 面板落在当前 Space。</strong> 原生全屏 Space 属于拥有它的 App 的窗口集合，<code>.canJoinAllSpaces</code> 只覆盖桌面。2.3.4 给面板补上 <code>.canJoinAllApplications</code>（macOS 13+）、移除把窗口钉在出生 Space 的 <code>.stationary</code>，层级保持 <code>.statusBar</code>；每次 order-front 重新声明成员资格，<code>isOnActiveSpace</code> 在下一个 run loop 复查。Space 切换动画里的触发仍立即显示，0.75 s 稳定期结束时补一次重排。重挂与一次性 <code>.moveToActiveSpace</code> 自愈是<strong>未验证兜底</strong>：19 会话 / 222 重绘的实机测试一次都没走到。</li>
+<li><strong>步 7 / 14 · 尺寸按会话预算。</strong> <code>PanelState.cardBudget</code> 把 <code>PanelSections.cardAndHeadingBudget()</code> 的第三个计数经 <code>EngineState.rowBudgetCache</code> 送进 <code>OverlayMetrics</code>，标题细线也跟随会话级标题预算；翻到多一张卡片的页面不再改变窗口高度。</li>
+<li><strong>B4 / B6 · 重放归属界面会话。</strong> chord 重放逐步预检后才激活目标或投递事件；重放完成、搜索激活交接与光标恢复由各自的 surface session 持有，替换界面或停止引擎会让旧工作失效。系统热键重载与配置扫描会重建已打开的面板／搜索面板。</li>
+<li><strong>B7 · 失焦关闭有归因。</strong> 关闭时记 <code>panelAge</code>、<code>spaceAge</code> 与两个 pid；关闭契约不变——离开 App 就关闭面板。</li>
+</ul>
+</div>
+
+<footer>整理：2026-11-12 · 执行者：团子 · 复核：2026-11-18，依据 kaname v2.3.4 (ba3cd43) 源码与更新日志 · 状态 已复核 · 本页为静态快照，非运行时截图。</footer>
 
 </div>
 </body>

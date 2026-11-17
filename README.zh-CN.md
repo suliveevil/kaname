@@ -10,7 +10,7 @@ Kaname 是一个 macOS 菜单栏工具。它通过辅助功能（Accessibility�
 
 > 系统要求：macOS 14.0 Sonoma 或更高版本。仅支持 macOS，不提供 Windows 或 Linux 版本。
 
-界面截图见 [README.md 的截图一节](README.md#screenshots)。
+界面截图见 [README.md 的截图一节](README.md#screenshots)。八张截图于 2026-11-18 用已安装的 2.3.4 构建（`ba3cd43`）通过内置 `KANAME_PREVIEW` 预览工具重拍；[`assets/`](assets/) 下的三张流程图也按同一提交复核：[数据流图](assets/kaname-dataflow.html)、[交互图](assets/kaname-interaction.html)、[泳道 SVG](assets/kaname-swimlane.svg)。
 
 ### 功能
 
@@ -78,7 +78,7 @@ brew tap suliveevil/tap
 brew install --cask kaname
 ```
 
-cask 位于公开仓库 `suliveevil/homebrew-tap`，指向对应 GitHub Release 上附带的 DMG。[`Distribution/kaname.rb`](Distribution/kaname.rb) 是模板，由 `scripts/publish_release.sh` 在发布上传成功后渲染；在 DMG 与 `.sha256` 存在之前，它不是可安装文件。
+cask 位于公开仓库 `suliveevil/homebrew-tap`，指向对应 GitHub Release 上附带的 DMG。[`Distribution/kaname.rb`](Distribution/kaname.rb) 是模板，由 `scripts/publish_release.sh` 在发布上传成功后渲染；在 DMG 与 `.sha256` 存在之前，它不是可安装文件。tap 的提交必须排在两份资产上线之后，随后用 `brew audit --cask --strict suliveevil/tap/kaname` 校验；完整顺序见 [docs/zh-CN/RELEASING.md](docs/zh-CN/RELEASING.md)。
 
 - **未公证。** Homebrew 默认会给下载产物打 quarantine，首次启动会被 Gatekeeper 拦下。在**系统设置 → 隐私与安全性**里点**仍要打开**，或对已安装副本执行 `xattr -dr com.apple.quarantine /Applications/Kaname.app`。Homebrew 7 已移除 `--no-quarantine`；每次 `brew upgrade` 都会重新下载并再次隔离。
 - **升级：** `brew upgrade --cask kaname`。先退出 Kaname——它是菜单栏常驻 App，旧进程会继续持有旧二进制与事件 tap。
