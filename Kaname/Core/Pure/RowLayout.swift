@@ -64,12 +64,13 @@ nonisolated enum RowLayout {
 
     /// Width of the chord slot, per chord style.
     ///
-    /// Measured at 12.5pt semibold: `⌘A` is 20pt, `⇧⌘4` is 33pt, `⌃⌥⇧⌘Q` is 57pt, while the
-    /// words style needs 69pt for `cmd shift 4` and 117pt for `ctrl opt shift cmd K`. One cap
-    /// for both styles parked ~50pt of empty column between the path and a two-glyph chord.
+    /// A symbols chord is now one 20 pt rounded square per key with a 3 pt gap, so the
+    /// widest five-key chord (`⌃⌥⇧⌘Q`) needs 5 × 20 + 4 × 3 = 112 pt. The 116 pt cap leaves
+    /// room for the hairline borders. The words style stays plain text: 69 pt for
+    /// `cmd shift 4` and 117 pt for `ctrl opt shift cmd K`, capped at 132 pt.
     static func keyWidthCap(for style: KeyFormatter.Style) -> Double {
         switch style {
-        case .symbols: return 70
+        case .symbols: return 116
         case .words: return 132
         }
     }

@@ -96,9 +96,11 @@ archive…** writes a zip for exactly that purpose, and you decide who receives 
 ## Permissions
 
 Accessibility is required (menu reading and the key tap). Input Monitoring is an optional
-fallback for systems that do not deliver key events with Accessibility alone. There are no
-other grants; Kaname never asks for Full Disk Access, Screen Recording, or Automation. See
-[PERMISSIONS.md](PERMISSIONS.md).
+fallback for systems that do not deliver key events with Accessibility alone. Kaname asks for
+no other grant: it **receives** `kaname://` URLs and AppleScript commands but never sends
+Apple events to other apps, so it does not request Automation. The process that issues a
+command — a terminal, for example — needs that grant itself. Kaname also never asks for Full
+Disk Access or Screen Recording. See [PERMISSIONS.md](PERMISSIONS.md).
 
 ## Verifying this
 

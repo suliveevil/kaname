@@ -65,7 +65,7 @@ App 写入统一日志，子系统为 `com.suliveevil.kaname`，分四类：`sca
 
 ## 权限
 
-辅助功能是必需的（读取菜单栏与按键 tap）。输入监控是可选兜底项，用于仅靠辅助功能收不到按键事件的系统。没有其他授权；Kaname 从不请求完全磁盘访问、屏幕录制或自动化。详见 [PERMISSIONS.md](PERMISSIONS.md)。
+辅助功能是必需的（读取菜单栏与按键 tap）。输入监控是可选兜底项，用于仅靠辅助功能收不到按键事件的系统。除此之外 Kaname 不申请任何授权：它接收 `kaname://` URL 和 AppleScript 命令，但**不向其他 App 发送 Apple events**，所以不请求「自动化」权限；发起命令的一方（例如终端）需要自己取得该授权。Kaname 也不请求完全磁盘访问或屏幕录制。详见 [PERMISSIONS.md](PERMISSIONS.md)。
 
 ## 如何自行验证
 

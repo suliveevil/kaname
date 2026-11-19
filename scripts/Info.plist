@@ -1,15 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-    The bundle's Info.plist for the swiftc build path.
+    The one Info.plist source for both build paths.
 
-    It lives in the repository because the fallback build used to read the template from
-    /Applications/Kaname.app — a previously *installed* copy. That made the build depend on
-    its own output: delete the app and nothing can be built, which is exactly what happened on
-    2026-11-02. The values mirror the project settings (MARKETING_VERSION 2.3.4,
-    CURRENT_PROJECT_VERSION 234, LSUIElement, minimum macOS 14.0); keep them in step when the
-    version changes. The xcodebuild path does not read this file — it generates the plist from
-    those same settings — so there is one source of truth per path and both are stated here.
+    It used to be the swiftc fallback's private template. Before that the fallback read
+    /Applications/Kaname.app, making the build depend on its own output (which is exactly
+    what broke on 2026-11-02). The Xcode target now sets INFOPLIST_FILE to this file while
+    keeping GENERATE_INFOPLIST_FILE = YES: Apple merges the file's content with the generated
+    values, which is the only way to add CFBundleURLTypes (an array of dictionaries —
+    INFOPLIST_KEY_* settings carry scalars only). Keep this file OUT of Kaname/, whose
+    synchronized group would also copy it into Resources and produce
+    "Multiple commands produce Info.plist".
+
+    CFBundleShortVersionString and CFBundleVersion are deliberately absent. Xcode generates
+    both from MARKETING_VERSION / CURRENT_PROJECT_VERSION; the swiftc fallback writes the
+    same two values with PlistBuddy. One source of truth for the version, in the project
+    file, instead of a second one here that goes stale on a release bump.
+
+    All three automation keys must stay in step with the produced bundle:
+      CFBundleURLTypes       registers kaname://
+      NSAppleScriptEnabled   enables Cocoa scripting
+      OSAScriptingDefinition points at Contents/Resources/Kaname.sdef
 -->
 <plist version="1.0">
 <dict>
@@ -31,17 +42,30 @@
 	<string>Kaname</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
-	<key>CFBundleShortVersionString</key>
-	<string>2.3.4</string>
-	<key>CFBundleVersion</key>
-	<string>234</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>CFBundleURLName</key>
+			<string>com.suliveevil.kaname</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>kaname</string>
+			</array>
+		</dict>
+	</array>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.utilities</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSAppleScriptEnabled</key>
+	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string></string>
+	<key>OSAScriptingDefinition</key>
+	<string>Kaname.sdef</string>
 </dict>
 </plist>

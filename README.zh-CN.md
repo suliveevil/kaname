@@ -128,6 +128,31 @@ open Kaname.xcodeproj
 | 切换面板/搜索 | 默认 ⌃⌥⌘S | 搜索可见 → 面板；面板可见 → 搜索；都不可见 → 打开面板。同一时间只显示一个，热键可在设置中录制。 |
 | 两套开关 | 设置 → 触发 | 「修饰键手势」和「全局快捷键」各有一个勾选框：可以同时生效、只开一套，或两套都关。两套都关就是暂停：什么都不触发，菜单栏与设置照常可用。 |
 
+### 外部自动化
+
+除了热键和菜单栏，还能从 URL scheme 和 AppleScript 触发同一组九个展示动作。两种入口共用 `AutomationAction` 枚举与 `AutomationRouter`，动作集合不会只在一边出现。
+
+| 动作 | URL scheme | AppleScript |
+| --- | --- | --- |
+| 打开快捷键提示面板 | `kaname://panel` | `show panel` |
+| 切换提示面板 | `kaname://toggle-panel` | `toggle panel` |
+| 打开搜索面板 | `kaname://search` | `show search` |
+| 面板 ⇄ 搜索 | `kaname://toggle-surface` | `toggle surface` |
+| 关闭所有浮层 | `kaname://close` | `close surfaces` |
+| 打开设置 | `kaname://settings` | `show settings` |
+| 打开冲突页 | `kaname://settings/conflicts` | `show conflicts` |
+| 打开权限窗口 | `kaname://permissions` | `show permissions` |
+| 打开关于 | `kaname://about` | `show about` |
+
+```sh
+open "kaname://panel"
+osascript -e 'tell application "Kaname" to show panel'
+```
+
+`kaname://` 没有鉴权也没有回传通道，任何进程或网页都能发起，所以只注册了无参数、幂等的展示动作：查询参数一律忽略，未知路径记日志后拒绝。执行菜单项、回放组合键、改设置、导出诊断包、重置统计都不对外暴露。AppleScript 的自动化授权由**发起方**申请，首次使用需要在系统弹窗里允许终端控制 Kaname。
+
+面板内容始终跟随**当前前台 App**：从终端触发时看到的是终端自己的快捷键表。想看某个 App 的提示，先把它切到前台再触发。
+
 ### 面板操作
 
 - 一次只显示一层：没有筛选、没有前缀时每个菜单项是完整组合键（如 ⌘C）；面板打开后按下修饰键会把它们加入有序筛选队列，再按字母即可组合筛选，列表随 token 增加而收窄，每个菜单项仍显示完整组合键。

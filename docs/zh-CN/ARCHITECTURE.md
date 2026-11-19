@@ -509,6 +509,18 @@ Shift 提示层（`ShiftHintLayer.labels(for:)`）每次重建都从当前显示
 `UsageSorting.entries(_:by:appName:)` 按快捷键、App 或命令给这张表排序。模型维护一个累计的 `totalPresses`，记录上限 800 条，按最近最少使用裁剪。
 它从不存储原始按键事件、输入的文本或窗口内容。重置统计会清掉记录；设置不受影响。持久化见[持久化](#持久化)。
 
+## 外部自动化入口
+
+App 之外有两个入口：`kaname://` URL 和 AppleScript 命令。它们在注册层分叉，在动作层汇合。
+
+**注册。** `scripts/Info.plist` 是两条构建路径唯一的 plist 源。`CFBundleURLTypes` 注册 scheme，`NSAppleScriptEnabled` 与 `OSAScriptingDefinition` 指向 `Contents/Resources/Kaname.sdef`。Xcode target 用 `INFOPLIST_FILE` 指向该文件并保留 `GENERATE_INFOPLIST_FILE = YES`，由 Xcode 把文件内容并入生成的 plist——`INFOPLIST_KEY_*` 只承载标量，写不进 `CFBundleURLTypes` 这种字典数组。该文件放在 `scripts/` 而不是 `Kaname/`：后者是同步组，会把 plist 当资源复制，触发 *Multiple commands produce Info.plist*。swiftc 回退路径直接 `cp` 同一份模板，并单独把 `.sdef` 复制进 `Contents/Resources/`；两个版本键由 PlistBuddy 从 `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` 写入，模板不再自带版本号。
+
+**解析。** `Core/Pure/AutomationAction.swift` 定义九个无参动作，并用一个封闭白名单解析 URL：scheme、userinfo、port、host 与多余路径段都要匹配，超长字符串直接拒绝，query 一律忽略。`Core/Pure` 只许 Foundation，因此这部分进 SwiftPM 测试目标。AppleScript 命令名通过 `scriptCommandName` 映射到同一个枚举，两个入口不会漂移。
+
+**路由。** `AppDelegate` 在 `applicationWillFinishLaunching` 用 `NSAppleEventManager` 注册 GURL handler——`application(_:open:)` 对自定义 `@main` 的 `LSUIElement` app 不可靠。事件早于 `engine.start()` 到达时进 `pendingAutomation`，启动完成后补跑。`Kaname.sdef` 的九个动词都指向 `KanameAutomationCommand`：该类读 `commandDescription.commandName`，再走同一个 `AppDelegate.handleAutomation`。`NSScriptCommand` 的两个钩子在 SDK 里是 `nonisolated`，本 target 默认 MainActor 隔离，所以类与两个 override 都显式 `nonisolated`，方法体内用 `MainActor.assumeIsolated` 回主线程。词典 `xi:include` 系统的 `CocoaStandard.sdef`，为没有直接参数的动词提供 `application` 类作为 subject。
+
+**边界。** URL scheme 无鉴权、无回传，所以只放无参数、幂等的展示动作；带参数的搜索、执行菜单项、写设置、导出诊断包、重置统计都不注册。`AutomationRouter` 调的是 `engine` 已有的公开方法，`showPanel` 不传 `ignoringOwnMenu`，外部请求仍受「不覆盖前台 App 弹窗」的守卫约束。面板内容跟随当前前台 App，从终端触发看到的是终端自己的快捷键表。
+
 ## 触发管线
 
 `KeyboardMonitor` 在辅助功能授权下装一个全局事件 tap。它观察 `flagsChanged`、`keyDown`、`keyUp`、左键／右键／其他鼠标键的按下与松开，以及 tap 被禁用的通知。事件原样放行，例外是：
@@ -693,9 +705,10 @@ P1-3 用与引擎切分同样的方式把它拆开：
 
 **一行分别陈述选中、可用性与语音。** 选中的菜单项前缘有一条 3 pt 的强调条，标题提亮 `+0.06`；单靠填充在浅色配色上太容易漏看，而这条条在色盲阅读下仍然成立。
 VoiceOver 收到 `.isSelected`，这一行是 `.contain` 容器而不是一个不透明元素（收藏星与冲突徽标保留自己的标签，装饰性标记是 `accessibilityHidden`），
-它的标签仍按"菜单项名 → 快捷键 → 状态"的顺序读。App 报告为禁用的菜单项保留变灰的标题并加一个尾随 `lock.slash`；它的右键菜单在动作之上以
+它的标签仍按"菜单项名 → 快捷键 → 状态"的顺序读。App 报告为禁用的菜单项保留变灰的标题，并在快捷键旁、始终预留的尾部槽位里显示 `lock.slash`；它的右键菜单在动作之上以
 **这个菜单项当前不可用** 开头，点击它会在 HUD 里显示同一句话，每个菜单项每三秒最多一次（`DisabledNoticeGate`，一个纯类型）。
-变灰的行与不可用的菜单项过去长得一样；那把锁说明是哪一种，而不把菜单项变成错误横幅。
+变灰的行与不可用的菜单项过去长得一样；那把锁说明是哪一种，而不把菜单项变成错误横幅。它原先放在固定宽度的标题列内，反而把它要说明的名称截短了；现在与同样始终预留的冲突徽标共用一个槽位，各列位置不变。
+这把锁刻意不并入前置的判定指示灯：那个灯变黄表示"快捷键被挡但点击仍可执行"，而且它可以在设置里关掉；只用颜色表达状态也违背了无障碍评审要求「禁用行必须有非颜色标记」这一条。红灯同样不等于「不可用」：它表示「快捷键和点击都无法执行」（`PanelTriggerAudit` 的自检结论），受限动作、配置工具行、没有 AX 元素且无快捷键的命令一样会亮红灯；反过来，禁用菜单项只要和弦仍能到达前台 App，灯依旧是绿的（`testDisabledRowWithReachableChordIsStillExecutable`）。指示灯是设置里可关闭的自检，小锁是不可关闭的非颜色标记，两者可能同框但互不替代。
 
 **空面板有四个答案和一个优先级。** `PanelEmptyKind.kind(isScanning:permissionDenied:showsFavoritesOnly:favoritesEmpty:)`
 决定权限 > 扫描中 > 只显示收藏且没有钉住的 > 没有匹配，每种情况带自己的 `L10nKey`。权限那种是唯一有出路的——**打开授权引导**——
@@ -703,7 +716,7 @@ VoiceOver 收到 `.isSelected`，这一行是 `.contain` 容器而不是一个�
 
 **快捷键列是一个固定槽位，不是自然文本。** `RowLayout` 预留它的宽度，字形用等宽设计渲染，组合键在右侧时（设置把它移到左侧时则是左侧）文本对齐到槽位的尾缘。
 没有快捷键的菜单项什么都不画：那一列是空白而不是破折号，因为破折号往下几行仍表示"macOS 说不出名字的系统热键"。
-修饰键字形保持一个规范的打印顺序，由 `KeyFormatterTests.testCanonicalModifierOrder` 钉住。
+修饰键字形保持一个规范的打印顺序，由 `KeyFormatterTests.testCanonicalModifierOrder` 钉住。现在每个键各占一个 20pt 圆角方形键帽，键帽之间留 3pt 间隙：`KeycapSequence` 把渲染后的组合键拆成「一键一 token」，`KeycapChrome` 画键帽，`RowLayout` 把符号风格的槽位从 70pt 放宽到 116pt 以容纳五键和弦。这 46pt 从菜单项标题列扣出，words 风格的 132pt 上限与分页计算不变。被该列截断的标题在鼠标悬停时只做一次单向横向滚动（`MarqueeText`）：滚到最后一个字符露出就停住，不左右弹跳；光标移开立即停止并复位到起始位置，再次移入则从头重来。文字在明确定宽并裁切的容器内用 offset 移动：宽度取自包住整个视图的 `GeometryReader`（不能用文字自身的自然宽度，那会让裁切和溢出测量同时失效），高度钉在一行实测行高上，因此在 `titleColumn` 形态的行里占据与普通 `Text` 完全相同的盒子。短标题不动，槽位宽度不变；快捷键列同样做了裁切，长键名不会画到旁边的菜单项名称上。只有真正放不下的标题才启用悬停滚动：单向滚到最后一个字符后停住，光标移开即停止并复位。
 
 **选区移动不重建列表。** `moveSelection` 与 `select(rowID:)` 只写 `panelSelectionIndex`；面板重建发生在顺序、筛选、搜索、分页或设置变化时。
 每一行自己算 `isSelected`，并用 0.1 秒 ease-out 动画填充与标记，所以按 ↓ 不会重跑排序或扫描工作。菜单激活跨到 `RowRunner`，

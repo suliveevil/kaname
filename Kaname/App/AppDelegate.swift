@@ -1,4 +1,5 @@
 import AppKit
+import Carbon
 import Combine
 import os
 
@@ -25,6 +26,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItemController: StatusItemController?
     private var backgroundActivity: NSObjectProtocol?
     private var cancellables: Set<AnyCancellable> = []
+
+    /// A `kaname://` request can arrive before `engine.start()` has run — LaunchServices
+    /// delivers the GURL event during launch, and an accessory app has no window to wait
+    /// for. Queue it instead of dropping it (which looks like "the URL did nothing") or
+    /// touching `engine` early (its lazy factory builds every window controller).
+    private var pendingAutomation: [AutomationAction] = []
+    private var automationReady = false
 
     override init() {
         // The crash handler is installed before the first store touches disk: reading
@@ -77,6 +85,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Registers the GURL handler before AppKit's own launch handling can install one.
+    ///
+    /// `NSApplicationDelegate.application(_:open:)` is not reliable for an `LSUIElement`
+    /// app with a custom `@main`: AppKit only forwards GURL events when its own handler is
+    /// installed. Registering explicitly is the one path that works for both a cold launch
+    /// and a URL delivered to the already-running instance.
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        NSAppleEventManager.shared().setEventHandler(
+            self,
+            andSelector: #selector(handleGetURL(_:withReplyEvent:)),
+            forEventClass: AEEventClass(kInternetEventClass),
+            andEventID: AEEventID(kAEGetURL)
+        )
+        Diag.debug(.ui, "automation: GURL handler installed")
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(settingsStore.settings.showDockIcon ? .regular : .accessory)
 
@@ -116,6 +140,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         engine.start()
         Diag.info(.start, "engine started in \(Int(Date().timeIntervalSince(started) * 1000))ms")
         showTriggerTipIfNeeded()
+        flushPendingAutomation()
 
         // The menu bar item is ours from here on: `StatusItemController` explains why it is
         // no longer a SwiftUI `MenuBarExtra`.
@@ -201,6 +226,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidBecomeActive(_ notification: Notification) {
         engine.refreshPermissions()
+    }
+
+    // MARK: - External automation
+
+    /// The GURL entry point. The raw string is never logged: it is untrusted input and can
+    /// carry a query string with another app's data. Only the verdict and the resolved
+    /// action name reach the log.
+    @objc private func handleGetURL(
+        _ event: NSAppleEventDescriptor,
+        withReplyEvent reply: NSAppleEventDescriptor
+    ) {
+        guard let raw = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
+              raw.count <= AutomationURL.maxLength,
+              let url = URL(string: raw) else {
+            Diag.warning(.ui, "automation: rejected malformed or oversized GURL event")
+            return
+        }
+        guard let action = AutomationURL.parse(url) else {
+            Diag.warning(.ui, "automation: rejected unrecognised kaname URL")
+            return
+        }
+        handleAutomation(action, source: "url")
+    }
+
+    /// The one funnel for both `kaname://` URLs and AppleScript commands.
+    ///
+    /// Internal rather than private because `KanameAutomationCommand` lives in
+    /// `AutomationSupport.swift` and needs to reach it.
+    func handleAutomation(_ action: AutomationAction, source: String) {
+        Diag.info(.ui, "automation: \(source) -> \(action.rawValue)")
+        guard automationReady else {
+            pendingAutomation.append(action)
+            Diag.debug(.ui, "automation: queued until the engine starts")
+            return
+        }
+        performAutomation(action)
+    }
+
+    private func flushPendingAutomation() {
+        automationReady = true
+        let queued = pendingAutomation
+        pendingAutomation.removeAll()
+        for action in queued { performAutomation(action) }
+    }
+
+    private func performAutomation(_ action: AutomationAction) {
+        AutomationRouter.perform(action, engine: engine) { [weak self] in
+            self?.openAboutPanel()
+        }
     }
 
     /// Clicking the Dock icon (only present when the user asks for it) opens the settings

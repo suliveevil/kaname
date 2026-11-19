@@ -271,7 +271,8 @@ private struct OverlayHeaderView: View {
     /// tokens), while clicking this chip ticks ⇧ into the filter. One tooltip on the row
     /// could only describe the three keys where both paths agree, so ⇧ carries its own.
     private var modifierChips: some View {
-        HStack(spacing: 1) {
+        // Four 20 pt caps with a real gap between them, not a strip of touching badges.
+        HStack(spacing: 3) {
             ForEach(ModifierSet.canonicalOrder, id: \.rawValue) { modifier in
                 modifierChip(modifier)
             }
@@ -305,17 +306,19 @@ private struct OverlayHeaderView: View {
             engine.toggleModifier(modifier)
         } label: {
             Text(KeyFormatter.symbol(for: modifier))
-                .font(.system(size: TypeScale.caption, weight: active ? .bold : .medium, design: .rounded))
+                .font(.system(size: TypeScale.body, weight: .bold, design: .rounded))
                 .foregroundStyle(active ? palette.keyHighlight : palette.secondaryText)
                 .frame(width: 20, height: 20)
-                .background(
-                    RoundedRectangle(cornerRadius: Theme.radiusTag, style: .continuous)
-                        .fill(chipFill(ticked: ticked, active: active))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.radiusTag, style: .continuous)
-                        .stroke(ticked ? Color.accentColor.opacity(Theme.tickedChipStroke) : .clear, lineWidth: 1)
-                        .decorative()
+                // The idle chip is a keycap too, so the four caps read as one keyboard even
+                // before a filter is active. Spread stays at zero: HeaderLayout budgets
+                // exactly 84 pt for this row of four 20 pt caps.
+                .keycap(
+                    fill: chipFill(ticked: ticked, active: active),
+                    border: ticked ? Color.accentColor.opacity(Theme.tickedChipStroke) : palette.border,
+                    cornerRadius: Theme.radiusTag,
+                    horizontalSpread: 0,
+                    verticalSpread: 0,
+                    lineWidth: 1
                 )
                 .contentShape(RoundedRectangle(cornerRadius: Theme.radiusTag, style: .continuous))
         }
@@ -328,8 +331,9 @@ private struct OverlayHeaderView: View {
 
     /// An active chip uses the row's highlight colour; a tick keeps its stronger fill and
     /// outline so "sticky" still reads differently from "down right now". Both are lit.
+    /// An idle chip still carries the quiet keycap face rather than nothing at all.
     private func chipFill(ticked: Bool, active: Bool) -> Color {
-        guard active else { return .clear }
+        guard active else { return palette.hover }
         return Color.accentColor.opacity(
             ticked
                 ? (palette.isLight ? Theme.tickedChipFillLight : Theme.tickedChipFillDark)
@@ -383,12 +387,17 @@ private struct OverlayHeaderView: View {
         } else {
             HStack(spacing: 4) {
                 ForEach(Array(state.panel.prefixLabels.enumerated()), id: \.offset) { _, label in
-                    Text(label)
-                        .font(.system(size: TypeScale.caption, weight: .semibold, design: .rounded))
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 1)
-                        .background(RoundedRectangle(cornerRadius: Theme.radiusTag).fill(palette.selection))
-                        .foregroundStyle(palette.secondaryText)
+                    // Breadcrumb labels are rendered chords ("⌘K"), so each key in
+                    // them gets its own cap rather than one badge around the pair.
+                    KeycapSequence(
+                        text: label,
+                        font: .system(size: TypeScale.body, weight: .bold, design: .rounded),
+                        foreground: palette.secondaryText,
+                        fill: palette.selection,
+                        border: palette.border,
+                        cornerRadius: Theme.radiusTag,
+                        edge: 18
+                    )
                 }
                 if state.panel.usedBuiltInCatalog {
                     // The rows are not this app's menus. Say so — and when the scan was
@@ -1006,29 +1015,27 @@ private struct OverlayPanelContentView: View {
                     .frame(width: 10, height: 10)
                     .accessibilityHidden(true)
             }
-            Text(row.title)
-                // A hint glyph sits at the far end of the row, a long way from the name it
-                // addresses. Underlining the addressable names in the same accent colour as
-                // the badge gives the eye an anchor on this side too, so a glance is less
-                // likely to land on the row above or below and run the wrong command.
-                // `hintLabel` is non-nil only while the hint layer is up.
-                .underline(row.hintLabel != nil, color: Color.accentColor.opacity(0.65))
-                .font(.system(size: TypeScale.body, weight: row.isCompleted ? .semibold : .regular))
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .foregroundStyle(rowTitleColor(row))
-                // A selected row's name steps up in brightness: the tint is a surface cue
-                // and can wash out on the light palette.
-                .brightness(selected ? 0.06 : 0)
-            if !row.isEnabled {
-                // A dimmed row and a row the app cannot run looked identical; the lock says
-                // the cause at a glance without turning the row into an error banner.
-                Image(systemName: "lock.slash")
-                    .font(.system(size: TypeScale.micro))
-                    .foregroundStyle(palette.tertiaryText)
-                    .accessibilityLabel(localization.text(.overlayUnavailableBadge))
-                    .accessibilityHint(localization.text(.panelDisabledReason))
-            }
+            // The fixed column clips a long name. While the pointer rests on the row the
+            // text scrolls just far enough to reveal the hidden tail, then slides back.
+            MarqueeText(
+                content: Text(row.title)
+                    // A hint glyph sits at the far end of the row, a long way from the name it
+                    // addresses. Underlining the addressable names in the same accent colour as
+                    // the badge gives the eye an anchor on this side too, so a glance is less
+                    // likely to land on the row above or below and run the wrong command.
+                    // `hintLabel` is non-nil only while the hint layer is up.
+                    .underline(row.hintLabel != nil, color: Color.accentColor.opacity(0.65))
+                    .font(.system(size: TypeScale.body, weight: row.isCompleted ? .semibold : .regular))
+                    .foregroundStyle(rowTitleColor(row)),
+                isActive: hoveredRowID == row.id
+            )
+            // A selected row's name steps up in brightness: the tint is a surface cue
+            // and can wash out on the light palette.
+            .brightness(selected ? 0.06 : 0)
+            // The unavailable marker deliberately does not live here. The design review
+            // asked for a non-colour marker on disabled rows, but putting it inside this
+            // fixed-width column clips the command name it is supposed to describe. It now
+            // sits in the row's reserved trailing gutter, next to the shortcut.
         }
         .frame(width: width, alignment: .leading)
     }
@@ -1148,14 +1155,29 @@ private struct OverlayPanelContentView: View {
     /// The chevron lives here rather than beside the menu path so that it survives the narrow
     /// panel, where the menu path column is dropped: a row with a level below it must stay
     /// recognisable whichever columns are showing.
+    ///
+    /// The `lock.slash` for a menu item the app reports as disabled also lives here. It used
+    /// to trail the command name inside the fixed-width title column, where it clipped the
+    /// very name it describes. The conflict slot is always reserved and normally transparent,
+    /// so the lock can share it without moving the chord or adding a column; a real conflict
+    /// wins because it is the rarer and more actionable warning.
     private func gutter(_ row: PanelRow) -> some View {
         HStack(spacing: RowLayout.gutterSpacing) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: TypeScale.micro))
-                .foregroundStyle(Theme.warning.opacity(0.85))
-                .frame(width: 12)
-                .opacity(row.hasConflict ? 1 : 0)
-                .accessibilityHidden(!row.hasConflict)
+            ZStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: TypeScale.micro))
+                    .foregroundStyle(Theme.warning.opacity(0.85))
+                    .opacity(row.hasConflict ? 1 : 0)
+                    .accessibilityHidden(!row.hasConflict)
+                Image(systemName: "lock.slash")
+                    .font(.system(size: TypeScale.micro))
+                    .foregroundStyle(palette.tertiaryText)
+                    .opacity(!row.hasConflict && !row.isEnabled ? 1 : 0)
+                    .accessibilityLabel(localization.text(.overlayUnavailableBadge))
+                    .accessibilityHint(localization.text(.panelDisabledReason))
+                    .accessibilityHidden(row.hasConflict || row.isEnabled)
+            }
+            .frame(width: 12)
             Image(systemName: "chevron.right")
                 .font(.system(size: TypeScale.micro, weight: .bold))
                 .foregroundStyle(palette.tertiaryText)
@@ -1190,17 +1212,34 @@ private struct OverlayPanelContentView: View {
                             .fill(Color.accentColor.opacity(palette.isLight ? Theme.hintBadgeFillLight : Theme.hintBadgeFillDark))
                     )
             } else {
-                HStack(spacing: 0) {
+                // Each segment is one key of the chord, so each gets its own rounded
+                // square. Five 20 pt keys plus four 3 pt gaps need 112 pt; the symbols
+                // column was widened to 116 pt to hold them. Words-style chords keep
+                // plain text — they already fill their 132 pt slot.
+                HStack(spacing: settings.keyStyle == .symbols ? 3 : 0) {
                     ForEach(Array(row.keySegments.enumerated()), id: \.offset) { _, segment in
                         Text(segment.text)
                             // A word standing in for a chord ("No shortcut") is a note, not a key: at
                             // chord size it no longer fits the slot the chord column was narrowed to.
                             .font(.system(
-                                size: isLabel(segment) ? TypeScale.micro : TypeScale.callout,
-                                weight: isEmphasized(segment) ? .bold : (isLabel(segment) ? .regular : .semibold),
+                                size: isLabel(segment) ? TypeScale.micro : TypeScale.body,
+                                weight: isLabel(segment) ? .regular : .bold,
                                 design: isLabel(segment) ? .default : .monospaced
                             ))
                             .foregroundStyle(keySegmentColor(row, segment))
+                            .frame(
+                                minWidth: isKeycapSegment(segment) ? 20 : 0,
+                                minHeight: isKeycapSegment(segment) ? 20 : 0
+                            )
+                            // Separators are spacing, labels are notes: neither is a key.
+                            .keycap(
+                                fill: palette.hover,
+                                border: palette.border,
+                                cornerRadius: Theme.radiusTag,
+                                horizontalSpread: 0,
+                                verticalSpread: 0,
+                                enabled: isKeycapSegment(segment)
+                            )
                     }
                 }
             }
@@ -1208,6 +1247,9 @@ private struct OverlayPanelContentView: View {
         .monospacedDigit()
         .lineLimit(1)
         .frame(width: width, alignment: alignment)
+        // A chord carrying a long key name can outgrow its slot. Never let the keycaps
+        // paint over the command name beside them.
+        .clipped()
     }
 
     /// Modifiers whose glyph is lit: exactly the set the panel is narrowed by, from both
@@ -1223,6 +1265,19 @@ private struct OverlayPanelContentView: View {
     private func isLabel(_ segment: KeyFormatter.Segment) -> Bool {
         if case .label = segment.kind { return true }
         return false
+    }
+
+    /// A separator is the gap inside a words-style chord or between two strokes. It is
+    /// spacing, not a key, so it never wears a cap of its own.
+    private func isSeparator(_ segment: KeyFormatter.Segment) -> Bool {
+        if case .separator = segment.kind { return true }
+        return false
+    }
+
+    /// Only a symbols-style glyph is drawn as a keycap. A separator is spacing, a label
+    /// is a note, and a words-style chord is prose that already fills its 132 pt column.
+    private func isKeycapSegment(_ segment: KeyFormatter.Segment) -> Bool {
+        settings.keyStyle == .symbols && !isLabel(segment) && !isSeparator(segment)
     }
 
     private func isEmphasized(_ segment: KeyFormatter.Segment) -> Bool {
@@ -1620,10 +1675,14 @@ private struct SearchResultRow: View {
     let palette: PanelPalette
     let onActivate: () -> Void
     @EnvironmentObject private var localization: Localization
+    /// Local to the row: the parent also observes hover to move the selection, but the
+    /// marquee needs the full enter/exit pair, including the exit the parent ignores.
+    @State private var hovering = false
 
     /// The shortcut column never moves, whichever app the palette is looking at: that is
-    /// what lets the eye run down one column and ignore the text beside it.
-    private let keyColumn: CGFloat = 78
+    /// what lets the eye run down one column and ignore the text beside it. 116 pt holds
+    /// five 20 pt keycaps with four 3 pt gaps.
+    private let keyColumn: CGFloat = 116
 
     private var restriction: Restriction {
         RestrictedActionPolicy.restriction(for: item)
@@ -1664,6 +1723,7 @@ private struct SearchResultRow: View {
                 .decorative()
         }
         .contentShape(Rectangle())
+        .onHover { hovering = $0 }
         .animation(.easeOut(duration: 0.12), value: isSelected)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(searchRowAccessibilityLabel))
@@ -1685,10 +1745,12 @@ private struct SearchResultRow: View {
     private var titleBlock: some View {
         VStack(alignment: .leading, spacing: 1) {
             HStack(spacing: 4) {
-                highlightedTitle
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .foregroundStyle(titleColor)
+                // Same remedy as the panel rows: the shortcut column is fixed, so a long
+                // title scrolls while the pointer is on this result.
+                MarqueeText(
+                    content: highlightedTitle.foregroundStyle(titleColor),
+                    isActive: hovering
+                )
                 if !isEnabled {
                     // A disabled item is still listed on purpose, so it needs a visible
                     // reason rather than a dimmed row nobody can read.
@@ -1722,12 +1784,19 @@ private struct SearchResultRow: View {
         } else {
             // A command with no shortcut keeps the column: the dash says "none" without
             // letting the titles beside it shift left.
-            Text(item.chord.isEmpty ? "—" : KeyFormatter.render(item.chord, style: style))
-                .font(.system(size: TypeScale.callout, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(shortcutColor)
-                .lineLimit(1)
-                .frame(width: keyColumn, alignment: keyPosition == .left ? .leading : .trailing)
+            // One cap per key. The dash is the column's word for "no shortcut", not a key;
+            // words-style chords are prose that already overflows this 78 pt column, so
+            // both stay plain text instead of gaining caps they cannot fit.
+            KeycapSequence(
+                text: item.chord.isEmpty ? "—" : KeyFormatter.render(item.chord, style: style),
+                font: .system(size: TypeScale.body, weight: .bold, design: .rounded),
+                foreground: shortcutColor,
+                fill: palette.hover,
+                border: palette.border,
+                cornerRadius: Theme.radiusTag,
+                enabled: style == .symbols && !item.chord.isEmpty
+            )
+            .frame(width: keyColumn, alignment: keyPosition == .left ? .leading : .trailing)
         }
     }
 

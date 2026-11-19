@@ -44,7 +44,8 @@ nonisolated enum HeaderLayout {
     var showsCount: Bool { self == .full }
     /// The favourites shortcut is the first control to go: rows carry the star as well.
     var showsFavoritesToggle: Bool { self != .minimal }
-    /// The four modifier chips cost about 84 pt. They leave with the subtitle and the app
+    /// The four modifier chips cost about 89 pt (4 × 20 plus three 3 pt gaps). They leave
+    /// with the subtitle and the app
     /// name — below 460 pt the panel is a single column and needs the width for rows.
     var showsModifierFilter: Bool { self != .minimal }
     var showsAppName: Bool { self != .minimal }

@@ -119,13 +119,13 @@ nonisolated final class RowLayoutContractTests: XCTestCase {
         }
     }
 
-    /// 快捷键列由**字形风格**定宽，与左右位置无关：符号风格 70pt（`⌃⌥⇧⌘Q` 实测 57pt），
-    /// words 风格 132pt（`ctrl opt shift cmd K` 实测 117pt），下限 52pt 保证短 chord 不塌成
-    /// 一个点。以前两种风格共用 120/96 两档，符号风格下每行空出约 50pt 的列宽，正落在
-    /// 菜单路径与 chord 之间 —— 那是“三座孤岛”里最刺眼的一处。
+    /// 快捷键列由**字形风格**定宽，与左右位置无关：符号风格 116pt（每个按键一个 20pt 圆角方形，
+    /// 五键 chord 加四个 3pt 间隙共 112pt），words 风格 132pt（`ctrl opt shift cmd K` 实测 117pt），
+    /// 下限 52pt 保证短 chord 不塌成一个点。以前两种风格共用 120/96 两档，符号风格下每行空出约
+    /// 50pt 的列宽，正落在菜单路径与 chord 之间 —— 那是“三座孤岛”里最刺眼的一处。
     func testKeyWidthIsSizedByChordStyle() {
-        assertClose(RowLayout.metrics(rowWidth: 500, keyPosition: .right).keyWidth, 70)
-        assertClose(RowLayout.metrics(rowWidth: 500, keyPosition: .left).keyWidth, 70)
+        assertClose(RowLayout.metrics(rowWidth: 500, keyPosition: .right).keyWidth, 116)
+        assertClose(RowLayout.metrics(rowWidth: 500, keyPosition: .left).keyWidth, 116)
         assertClose(RowLayout.metrics(rowWidth: 500, keyPosition: .right, keyStyle: .words).keyWidth, 132)
         assertClose(RowLayout.metrics(rowWidth: 1600, keyPosition: .left, keyStyle: .words).keyWidth, 132)
         // 下限：短快捷键不至于塌成一个点，与位置无关。
@@ -137,7 +137,7 @@ nonisolated final class RowLayoutContractTests: XCTestCase {
     func testCompactChordsGiveTheTitleTheFreedWidth() {
         let symbols = RowLayout.metrics(rowWidth: 720, keyPosition: .right, keyStyle: .symbols)
         let words = RowLayout.metrics(rowWidth: 720, keyPosition: .right, keyStyle: .words)
-        assertClose(symbols.titleWidth - words.titleWidth, 62) // 132 − 70
+        assertClose(symbols.titleWidth - words.titleWidth, 16) // 132 − 116
     }
 
     /// 菜单路径在右侧快捷键布局里贴住 chord（从槽位的右边缘对齐），在左侧布局里跟着标题
@@ -152,9 +152,9 @@ nonisolated final class RowLayoutContractTests: XCTestCase {
     func testTitleWidthReservesTheChordInBothPositions() {
         let right = RowLayout.metrics(rowWidth: 720, keyPosition: .right)
         assertClose(right.rowContentWidth, 704)
-        assertClose(right.titleWidth, 398) // 704 − 70 − 168 − 44 − 24
+        assertClose(right.titleWidth, 352) // 704 − 116 − 168 − 44 − 24
         let left = RowLayout.metrics(rowWidth: 720, keyPosition: .left)
-        assertClose(left.titleWidth, 398)
+        assertClose(left.titleWidth, 352)
         assertClose(right.titleWidth + right.keyWidth, left.titleWidth + left.keyWidth)
     }
 
@@ -184,15 +184,15 @@ nonisolated final class RowLayoutContractTests: XCTestCase {
 
     /// 记录 `max(60, …)` 这个下限**在哪一档真的生效**。
     ///
-    /// 快捷键槽收窄之后，单列 300pt（面板的最小宽度）不再溢出 —— 以前这一档预留之和比
-    /// 行内容宽多 3pt，行会被裁掉。现在下限只在 rowWidth ≤ 188 时才生效，而那个宽度只出现
-    /// 在退化几何里（面板最小 300pt）。这同时也是重排的收益：最小面板不再溢出。
+    /// 符号槽上限从 70pt 放宽到 116pt 后，单列 300pt 的 keyWidth 不再被 70pt 截住，
+    /// 而是取 0.28 × 284 = 79.52pt；预留之和因此把标题压到 60pt 下限。下限现在在
+    /// 300pt 与 rowWidth ≤ 188 两档都生效。rowWidth 190pt 仍高于下限，用来钉住边界。
     func testTitleFloorEngagesOnlyBelowTheNarrowestPanel() {
         let tightest = RowLayout.metrics(rowWidth: 300, keyPosition: .right)
-        assertClose(tightest.titleWidth, 66.48)
+        assertClose(tightest.titleWidth, 60)
         let gaps = RowLayout.columnGap * Double(tightest.showsNote ? 3 : 2)
         let reserved = tightest.keyWidth + tightest.noteWidth + tightest.gutterWidth + gaps
-        XCTAssertLessThanOrEqual(reserved, tightest.rowContentWidth, "最小支持宽度不再溢出")
+        XCTAssertLessThanOrEqual(reserved, tightest.rowContentWidth, "预留之和仍在内容宽内，标题下限另计")
 
         XCTAssertEqual(RowLayout.metrics(rowWidth: 188, keyPosition: .right).titleWidth, 60)
         XCTAssertGreaterThan(RowLayout.metrics(rowWidth: 190, keyPosition: .right).titleWidth, 60)

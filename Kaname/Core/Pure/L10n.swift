@@ -187,7 +187,7 @@ nonisolated enum L10nKey: String, CaseIterable, Sendable {
     case testSummaryRewritten, testSummaryNothingSeen
 
     // About
-    case aboutTitle, aboutRepository, aboutLicense, aboutSystem, aboutDataFolder, aboutDiagnostics, aboutMenuItems
+    case aboutTitle, aboutRepository, aboutLicense, aboutDataFolder, aboutDiagnostics, aboutMenuItems
     case aboutExportDiagnostics, aboutDiagnosticsHint
 
     // Groups used by the built-in fallback catalog
@@ -627,7 +627,7 @@ nonisolated enum L10n {
             "Could not bring the target app to the front — no shortcut was sent",
             "无法将目标 App 切到前台，未发送快捷键"
         ),
-        .panelIdleHint: ("Press a shortcut to identify it · / searches · Esc closes", "按下快捷键查看说明 · / 搜索 · Esc 关闭"),
+        .panelIdleHint: ("Click a modifier to filter the list · / searches · Esc closes", "点击修饰键筛选并查看说明 · / 搜索 · Esc 关闭"),
         .panelActionHint: (
             "↑↓ select · %1$@ run · %2$@ copy · Esc close",
             "↑↓ 选择 · %1$@ 执行 · %2$@ 复制 · Esc 关闭"
@@ -935,7 +935,6 @@ nonisolated enum L10n {
         .aboutTitle: ("About", "关于"),
         .aboutRepository: ("Repository", "仓库"),
         .aboutLicense: ("License", "协议"),
-        .aboutSystem: ("System", "系统"),
         .aboutDataFolder: ("Data folder", "数据目录"),
         .aboutDiagnostics: ("Diagnostics", "诊断"),
         .aboutMenuItems: ("Menu items", "菜单项数"),

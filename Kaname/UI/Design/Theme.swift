@@ -202,7 +202,9 @@ extension PanelTheme {
     }
 }
 
-/// A keycap used across the overlay, the search panel and the main window.
+/// A chord in the main window, drawn as one keycap per key — the hotkey recorder and the
+/// conflicts list use it. Kept as a thin wrapper so those call sites still pass a rendered
+/// string, while the per-key splitting lives in `KeycapSequence`.
 struct KeycapView: View {
     let text: String
     var compact = false
@@ -211,20 +213,15 @@ struct KeycapView: View {
     var border: Color = Color.primary.opacity(0.18)
 
     var body: some View {
-        Text(text)
-            .font(.system(size: compact ? TypeScale.caption : TypeScale.callout, weight: .semibold, design: .rounded))
-            .monospacedDigit()
-            .padding(.horizontal, compact ? 4 : 8)
-            .padding(.vertical, compact ? 2 : 4)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.radiusControl, style: .continuous)
-                    .fill(background)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.radiusControl, style: .continuous)
-                    .stroke(border, lineWidth: 0.5)
-            )
-            .foregroundStyle(foreground)
-            .fixedSize()
+        KeycapSequence(
+            text: text,
+            font: .system(size: TypeScale.body, weight: .bold, design: .rounded),
+            foreground: foreground,
+            fill: background,
+            border: border,
+            gap: compact ? 2 : 3
+        )
+        .padding(.vertical, compact ? 2 : 4)
+        .fixedSize()
     }
 }

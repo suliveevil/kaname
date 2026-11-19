@@ -167,6 +167,31 @@ The full walkthrough, including reset commands and signature-related re-granting
 | Two independent switches | Settings → Trigger | The modifier gesture and the three hotkeys each have their own switch at the left of the card header. They can both be live, only one can, or both can be off — both off means no trigger fires, while the menu bar and settings keep working. |
 | A Karabiner rule yields to the panel | Settings → Trigger, plus one condition in your own Karabiner rule | On by default. While the panel is shown Kaname sets Karabiner's `kaname_panel` variable to 1 and clears it to 0 when the panel closes, at launch and at quit. A rule carrying `conditions: [{"type": "variable_unless", "name": "kaname_panel", "value": 1}]` applies only while the panel is closed, so the key reaches the panel as a modifier. Without that condition the rule behaves exactly as before; nothing is written when Karabiner is not installed. |
 
+### Automation
+
+The same nine presentation actions are available from a URL scheme and from AppleScript. Both entry points resolve through one `AutomationAction` enum and one `AutomationRouter`, so an action cannot exist in one and be missing from the other.
+
+| Action | URL scheme | AppleScript |
+| --- | --- | --- |
+| Open the shortcut hint panel | `kaname://panel` | `show panel` |
+| Toggle the hint panel | `kaname://toggle-panel` | `toggle panel` |
+| Open the search palette | `kaname://search` | `show search` |
+| Swap panel / search | `kaname://toggle-surface` | `toggle surface` |
+| Close both surfaces | `kaname://close` | `close surfaces` |
+| Open Settings | `kaname://settings` | `show settings` |
+| Open the Conflicts page | `kaname://settings/conflicts` | `show conflicts` |
+| Open the Permissions window | `kaname://permissions` | `show permissions` |
+| Open About | `kaname://about` | `show about` |
+
+```sh
+open "kaname://panel"
+osascript -e 'tell application "Kaname" to show panel'
+```
+
+A `kaname://` URL has no authentication and no reply channel — any process or web page can send one. The whitelist therefore contains only parameterless, idempotent presentation actions: query strings are ignored and unknown paths are logged and refused. Running a menu item, replaying a keystroke, changing a setting, exporting diagnostics and resetting usage are not exposed. AppleScript's Automation grant belongs to the **sender**; the first call from a terminal needs your approval in the system prompt.
+
+The panel always describes the **frontmost app**. Triggering it from a terminal shows that terminal's own shortcuts; bring the app you want to inspect to the front first.
+
 ### The panel
 
 - **One level at a time.** With no filter and an empty prefix every menu item is a complete combination (for example ⌘C). A modifier pressed while the panel is open joins the ordered filter, so the list narrows as more tokens arrive; a chord prefix shows each menu item's next key.

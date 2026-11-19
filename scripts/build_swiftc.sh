@@ -80,11 +80,23 @@ else
     exit 1
 fi
 
+# Cocoa scripting reads the sdef from Contents/Resources at launch. The Xcode path copies
+# it for free because Kaname/ is a synchronized group; this path compiles a plain list of
+# .swift files and has no resource phase, so it has to copy the dictionary explicitly.
+# Refuse to ship a bundle whose Info.plist advertises a dictionary that is not there.
+SDEF="$ROOT/Kaname/Kaname.sdef"
+if [ -f "$SDEF" ]; then
+    cp "$SDEF" "$APP/Contents/Resources/Kaname.sdef"
+else
+    echo "error: Kaname.sdef missing; AppleScript is registered but would be unusable" >&2
+    exit 1
+fi
+
 # The Xcode path takes the version from `MARKETING_VERSION`; this path took it from whichever
 # Info.plist template it found. A version bump that only touched the project file therefore
 # produced a fallback build that named itself the previous release — the DMG said 2.2.0 and
-# the About page said 2.1.0. The template still supplies everything else, but the two keys
-# that name the build are read from the project file whenever it carries them.
+# the About page said 2.1.0. The template no longer carries either version key: it is also
+# Xcode's INFOPLIST_FILE now, so both paths read the version from the project file alone.
 PLIST="$APP/Contents/Info.plist"
 PBXPROJ="$ROOT/Kaname.xcodeproj/project.pbxproj"
 PLIST_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST" 2>/dev/null || true)"
@@ -96,7 +108,10 @@ if [ -n "$PROJECT_VERSION" ]; then
         # disagreeing is what makes a fallback build differ from the one users get.
         echo "==> version $PLIST_VERSION (template) overridden by MARKETING_VERSION $PROJECT_VERSION"
     fi
-    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $PROJECT_VERSION" "$PLIST"
+    # Add is the normal path now that the template has no version key; Set covers a caller
+    # who points KANAME_PLIST_SOURCE at an older plist that still carries one.
+    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $PROJECT_VERSION" "$PLIST" 2>/dev/null \
+        || /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $PROJECT_VERSION" "$PLIST"
 fi
 if [ -n "$PROJECT_BUILD" ]; then
     /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $PROJECT_BUILD" "$PLIST" 2>/dev/null \

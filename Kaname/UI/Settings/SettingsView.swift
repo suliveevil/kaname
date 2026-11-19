@@ -830,10 +830,20 @@ struct SettingsView: View {
         let owner = UsageStatistics.bundleID(fromUsageKey: entry.usageKey)
         let renderedChord = entry.chord.map { KeyFormatter.render($0, style: settings.keyStyle) }
         return HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(renderedChord ?? "—")
-                .font(.system(size: TypeScale.caption, design: .monospaced))
-                .foregroundStyle(entry.isShortcutless ? .secondary : .primary)
-                .frame(width: 76, alignment: .leading)
+            // One rounded square per key, matching the conflict rows and the hotkey
+            // recorder. 116 pt holds five 20 pt caps with four 3 pt gaps.
+            KeycapSequence(
+                text: renderedChord ?? "—",
+                font: .system(size: TypeScale.body, weight: .bold, design: .monospaced),
+                foreground: entry.isShortcutless ? .secondary : .primary,
+                fill: Color.primary.opacity(0.08),
+                border: Color.primary.opacity(0.18),
+                cornerRadius: Theme.radiusTag,
+                enabled: settings.keyStyle == .symbols
+                    && !entry.isShortcutless
+                    && renderedChord != nil
+            )
+            .frame(width: 116, alignment: .leading)
                 // The dash is the column's word for "this command has no shortcut";
                 // VoiceOver would read the glyph itself, so the label says the same thing
                 // in words. "Not set" is the app's existing word for an unassigned key.
@@ -1310,10 +1320,6 @@ struct SettingsView: View {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
-                }
-                LabeledContent(localization.text(.aboutSystem)) {
-                    Text(ProcessInfo.processInfo.operatingSystemVersionString)
-                        .foregroundStyle(.secondary)
                 }
                 UpdateCheckRow(
                     checker: engine.updateChecker,

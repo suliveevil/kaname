@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
+<!--
+    Kaname's AppleScript terminology.
+
+    The XInclude of CocoaStandard.sdef supplies the Standard Suite and its `application`
+    class. System scriptable apps (Shortcuts, Terminal) do the same include: a verb with no
+    direct parameter needs a scripting subject, and Cocoa scripting resolves that subject
+    through the application class. Standard Suite terms such as `version` and `quit` come
+    from that file.
+
+    Every custom command maps to one case of AutomationAction, the same enum the kaname://
+    URL whitelist resolves to. All nine commands share KanameAutomationCommand: the class
+    reads commandDescription.commandName and looks the action up, so adding a verb cannot
+    leave a command implemented in one entry point but not the other.
+
+    Command codes are event class "Knme" plus a four-character id. Mixed case avoids the
+    all-lowercase four-character codes Apple reserves for its own suites.
+
+    Deliberately absent: anything that runs a menu item, posts a keystroke, writes a
+    setting, exports a file. A URL scheme has no authentication; AppleScript commands are
+    reachable from any process that has Automation permission, so the custom surface stays
+    limited to parameterless, presentation-only actions.
+-->
+<dictionary title="Kaname Terminology" xmlns:xi="http://www.w3.org/2003/XInclude">
+  <xi:include href="file:///System/Library/ScriptingDefinitions/CocoaStandard.sdef" xpointer="xpointer(/dictionary/suite)"/>
+  <suite name="Kaname Suite" code="Knme" description="Open Kaname's shortcut hint panel, search palette and windows.">
+    <command name="show panel" code="KnmeShPn" description="Open the shortcut hint panel for the frontmost app.">
+      <cocoa class="KanameAutomationCommand"/>
+    </command>
+    <command name="toggle panel" code="KnmeTgPn" description="Open the shortcut hint panel, or close it if it is already visible.">
+      <cocoa class="KanameAutomationCommand"/>
+    </command>
+    <command name="show search" code="KnmeShSr" description="Open the shortcut search palette.">
+      <cocoa class="KanameAutomationCommand"/>
+    </command>
+    <command name="toggle surface" code="KnmeTgSf" description="Swap between the shortcut hint panel and the search palette.">
+      <cocoa class="KanameAutomationCommand"/>
+    </command>
+    <command name="close surfaces" code="KnmeClSf" description="Close the hint panel and the search palette.">
+      <cocoa class="KanameAutomationCommand"/>
+    </command>
+    <command name="show settings" code="KnmeShSt" description="Open the Settings window.">
+      <cocoa class="KanameAutomationCommand"/>
+    </command>
+    <command name="show conflicts" code="KnmeShCf" description="Open the Settings window on the Conflicts page.">
+      <cocoa class="KanameAutomationCommand"/>
+    </command>
+    <command name="show permissions" code="KnmeShPm" description="Open the Permissions window.">
+      <cocoa class="KanameAutomationCommand"/>
+    </command>
+    <command name="show about" code="KnmeShAb" description="Open the standard About panel.">
+      <cocoa class="KanameAutomationCommand"/>
+    </command>
+  </suite>
+</dictionary>
